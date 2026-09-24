@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T15:20:51.489Z",
-  "fileSetSHA256": "31aeda5046b8e439f89b316e7df2b5827b764d158b0c50593f85f76af908cdec",
+  "createdAt": "2026-09-24T15:49:44.843Z",
+  "fileSetSHA256": "10fced579ff8a51f556b96392a1f7806d86f1184a9dac34e261b2abefc0f56d2",
   "files": [
     {
       "path": ".gitattributes",
@@ -342,6 +342,10 @@
     {
       "path": "docs/releases/0.3.6-dev.20260921.2.md",
       "sha256": "3988b639ecb3fcea7498c29b7f69112a959e2c23bb8e7c1d44a5e7132817d866"
+    },
+    {
+      "path": "docs/releases/installer-validation.md",
+      "sha256": "e330b2d407bb2ead9822cd812f380bae4ad4958153332f67c6e85f28bfe5b531"
     },
     {
       "path": "docs/UPDATES.md",
