@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T14:38:30.925Z",
-  "fileSetSHA256": "5d193d24592231b9cfadc6d5ee32dd70bd6cf1f677e5cb3d65b9390d2331d2ad",
+  "createdAt": "2026-09-24T14:43:49.135Z",
+  "fileSetSHA256": "7963087e5d26ea289f47c01e9fc352ff114548f37ce07e56790eeb5a88f93d4b",
   "files": [
     {
       "path": ".gitattributes",
@@ -4521,7 +4521,7 @@
     },
     {
       "path": "scripts/macos-dmg/background.swift",
-      "sha256": "47598228f644353ce26047d2eea8f03fa3ece10c77b77b348067f58bd18efac8"
+      "sha256": "6960bc01280ee61d81d6885556808d653fc6fa2b892ccf0a310e883f0543ed0b"
     },
     {
       "path": "scripts/macos-dmg/package.py",
