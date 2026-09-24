@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T14:25:55.478Z",
-  "fileSetSHA256": "d890e67e68a16635360b7e3923490069b05fbf5183cf1138f8578487575815dc",
+  "createdAt": "2026-09-24T14:38:30.925Z",
+  "fileSetSHA256": "5d193d24592231b9cfadc6d5ee32dd70bd6cf1f677e5cb3d65b9390d2331d2ad",
   "files": [
     {
       "path": ".gitattributes",
@@ -25,7 +25,7 @@
     },
     {
       "path": ".github/workflows/desktop-candidates.yml",
-      "sha256": "cc96bbfaff2a2039be22a982343a8c07c8aaad85cd7b88015888fc16b792d6a7"
+      "sha256": "6156a2bcc21ac64cb254a914ce6dc16041eb8588badda761c7c1690842ca13a2"
     },
     {
       "path": ".github/workflows/development-windows.yml",
@@ -289,7 +289,7 @@
     },
     {
       "path": "docs/MACOS.md",
-      "sha256": "041920cd6bc2da3c6f99740707f4859720ba9951c8364dab42d960d071f55e5a"
+      "sha256": "e3e53e74d510296733fb48cae78c2581aa4d57f940457a06e8dd4fd2625e4e69"
     },
     {
       "path": "docs/MEDIA.md",
@@ -4550,6 +4550,10 @@
     {
       "path": "scripts/package-macos-external-config.ps1",
       "sha256": "e45ee015be587aae665a9a25ae5c66ad5a4ce103e85e963a05200afd4fdea345"
+    },
+    {
+      "path": "scripts/package-windows-msi.ps1",
+      "sha256": "ac12a136e88144ad650c7d4c4c6c15e774b113a976783292504d4895f7483104"
     },
     {
       "path": "scripts/packages/archive.mjs",
