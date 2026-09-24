@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T14:43:49.135Z",
-  "fileSetSHA256": "7963087e5d26ea289f47c01e9fc352ff114548f37ce07e56790eeb5a88f93d4b",
+  "createdAt": "2026-09-24T14:58:26.811Z",
+  "fileSetSHA256": "eb17ba46135bf95af20f2a01efdbf7b8f73ce8daf03110555c1cc8ee5177c580",
   "files": [
     {
       "path": ".gitattributes",
@@ -4553,7 +4553,7 @@
     },
     {
       "path": "scripts/package-windows-msi.ps1",
-      "sha256": "ac12a136e88144ad650c7d4c4c6c15e774b113a976783292504d4895f7483104"
+      "sha256": "79458f56d7a30e7da03a0f760c6b15b578751f0e63e7a06b79c55179384333e8"
     },
     {
       "path": "scripts/packages/archive.mjs",

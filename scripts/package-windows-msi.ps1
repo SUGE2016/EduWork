@@ -46,13 +46,14 @@ try {
       </Directory>
     </Directory>
     <Feature Id="Main" Level="1"><ComponentGroupRef Id="AppFiles" /><ComponentRef Id="StartMenu" /></Feature>
-    <UIRef Id="WixUI_ProgressOnly" />
+    <Property Id="LIMITUI" Value="1" />
+    <Property Id="ARPNOMODIFY" Value="1" />
   </Product>
 </Wix>
 "@ | Set-Content $product -Encoding utf8NoBOM
     & "$wix/candle.exe" -nologo -arch x64 "-dApp=$App" -out "$work/" $product $files
     # Per-user file components use their files as key paths (ICE38); user data keeps directories (ICE64).
-    & "$wix/light.exe" -nologo -ext WixUIExtension -sice:ICE38 -sice:ICE64 -out $Output "$work/product.wixobj" "$work/files.wixobj"
+    & "$wix/light.exe" -nologo -sice:ICE38 -sice:ICE64 -out $Output "$work/product.wixobj" "$work/files.wixobj"
     Remove-Item ([IO.Path]::ChangeExtension($Output, '.wixpdb')) -ErrorAction SilentlyContinue
     $hash = (Get-FileHash $Output -Algorithm SHA256).Hash.ToLowerInvariant()
     "$hash  $([IO.Path]::GetFileName($Output))" | Set-Content ($Output + '.sha256') -Encoding ascii
