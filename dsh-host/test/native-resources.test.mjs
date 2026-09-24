@@ -58,3 +58,19 @@ test('unconfigured products remain usable; resources cannot inject unrelated env
   await rm(join(product, 'desktop-resources.json'))
   assert.deepEqual(await prepareNativeResources({ product }), { environment: {}, pluginConfig: {} })
 })
+
+test('macOS standalone Python resolves without a Windows venv and rejects escaping executables', { skip: process.platform !== 'darwin' }, async t => {
+  const { product, manifest, save } = await fixture(t)
+  await mkdir(join(product, 'r/p/bin'))
+  await writeFile(join(product, 'r/p/bin/python3'), 'synthetic Python')
+  await writeFile(join(product, 'r/office-python'), 'synthetic launcher')
+  manifest.python = { baseRoot: 'r/p', executable: 'r/p/bin/python3', version: '3.12.13' }
+  manifest.environment.DSH_OFFICE_PYTHON = 'r/office-python'
+  await save()
+  const result = await prepareNativeResources({ product })
+  assert.equal(result.environment.DSH_OFFICE_PYTHON, join(await realpath(product), 'r/office-python'))
+  assert.equal(await readFile(join(product, 'r/v/pyvenv.cfg'), 'utf8'), 'home = stale location\n')
+  manifest.python.executable = '../outside'
+  await save()
+  await assert.rejects(prepareNativeResources({ product }), /escapes/)
+})

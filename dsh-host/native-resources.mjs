@@ -69,7 +69,11 @@ export async function prepareNativeResources({ product }) {
     if (!Object.hasOwn(types, name)) throw new Error('Unsupported desktop resource environment key')
     environment[name] = await resourcePath(product, path, types[name])
   }
-  if (manifest.python) {
+  if (manifest.python && process.platform === 'darwin' && !Object.hasOwn(manifest.python, 'venvRoot')) {
+    await resourcePath(product, manifest.python.baseRoot, 'directory')
+    await resourcePath(product, manifest.python.executable)
+    if (!environment.DSH_OFFICE_PYTHON || !/^3\.\d+\.\d+$/u.test(manifest.python.version)) throw new Error('Desktop Python identity mismatch')
+  } else if (manifest.python) {
     const base = await resourcePath(product, manifest.python.baseRoot, 'directory')
     const venv = await resourcePath(product, manifest.python.venvRoot, 'directory')
     const python = await resourcePath(product, `${manifest.python.baseRoot}/python.exe`)

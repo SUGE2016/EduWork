@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T14:10:54.344Z",
-  "fileSetSHA256": "8c4eb781d78be5a682658a4a2efae890277d018b1ad9972b1a6779f8fe2b5d2d",
+  "createdAt": "2026-09-24T14:25:55.478Z",
+  "fileSetSHA256": "d890e67e68a16635360b7e3923490069b05fbf5183cf1138f8578487575815dc",
   "files": [
     {
       "path": ".gitattributes",
@@ -1041,7 +1041,7 @@
     },
     {
       "path": "dsh-host/native-resources.mjs",
-      "sha256": "f266322b37436a9be3215a9ae1bc61f7256893350a6a4b22af21968c10c9fabf"
+      "sha256": "e317689cd921bbb333f423b122baf0a583e6a214a5b3395286e71d805cfee498"
     },
     {
       "path": "dsh-host/prepare-native.mjs",
@@ -1125,7 +1125,7 @@
     },
     {
       "path": "dsh-host/test/native-resources.test.mjs",
-      "sha256": "1f25486d45334bdfd2828a55f0728e9d2ec6d4cfe90eb9df0495837d849af67d"
+      "sha256": "49449e1bfd1e9c94e2c9df21cc4e5e0baadac75275248a330d38f99966ed652f"
     },
     {
       "path": "dsh-host/test/native-reveal.integration.test.mjs",
