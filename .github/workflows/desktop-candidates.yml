@@ -99,7 +99,7 @@ jobs:
           if ($archives.Count -ne 1) { throw 'Expected one validated Windows ZIP' }
           $msi = [IO.Path]::ChangeExtension($archives[0].FullName, '.msi')
           ./core/scripts/package-windows-msi.ps1 -App "$build/unpacked/EduWork" -Output $msi
-          $install = "$env:RUNNER_TEMP/msi-install"
+          $install = [IO.Path]::GetFullPath("$env:RUNNER_TEMP/msi-install")
           $log = "$build/evidence-public/msi-install.log"
           $process = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart INSTALLFOLDER=`"$install`" /l*v `"$log`"" -Wait -PassThru
           if ($process.ExitCode -notin 0,3010) { throw "MSI installation failed: $($process.ExitCode)" }

@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T14:58:26.811Z",
-  "fileSetSHA256": "eb17ba46135bf95af20f2a01efdbf7b8f73ce8daf03110555c1cc8ee5177c580",
+  "createdAt": "2026-09-24T15:20:51.489Z",
+  "fileSetSHA256": "31aeda5046b8e439f89b316e7df2b5827b764d158b0c50593f85f76af908cdec",
   "files": [
     {
       "path": ".gitattributes",
@@ -25,7 +25,7 @@
     },
     {
       "path": ".github/workflows/desktop-candidates.yml",
-      "sha256": "6156a2bcc21ac64cb254a914ce6dc16041eb8588badda761c7c1690842ca13a2"
+      "sha256": "7490d139348403fc5c29cdd4c2fdec61a0a9152d18eb74e52ddaab8b39b8cdd2"
     },
     {
       "path": ".github/workflows/development-windows.yml",
