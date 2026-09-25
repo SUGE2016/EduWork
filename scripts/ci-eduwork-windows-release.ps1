@@ -8,6 +8,7 @@ param(
     [string]$ReleaseNotesFile,
     [switch]$ReleaseNotesApproved,
     [switch]$Development,
+    [switch]$InstallerOnly,
     [Parameter(Mandatory)][string]$Output
 )
 $ErrorActionPreference = 'Stop'
@@ -105,13 +106,13 @@ $name $Version — Windows x64 Electron 开发版
 由维护者完成实包升级验收后配置开发更新清单，不能投放到 0.2 旧入口。
 "@ | Set-Content (Join-Path $candidate 'README.txt') -Encoding utf8NoBOM
     }
-    & (Join-Path $CoreRoot 'scripts/pack-windows-release.ps1') -Candidate $candidate -Output $archive -Development:$isDevelopmentVersion -ForUpdate
-    # Test the extracted ZIP, not the input directory. This also exercises
-    # relocation of the private Python environment and all native paths.
+    & (Join-Path $CoreRoot 'scripts/pack-windows-release.ps1') -Candidate $candidate -Output $archive -Development:$isDevelopmentVersion -ForUpdate -DirectoryOnly:$InstallerOnly
+    # Relocate the application before checking its manifest and native paths.
     $extracted = Join-Path $Output 'unpacked'
     New-Item -ItemType Directory -Path $extracted | Out-Null
-    & tar.exe -xf $archive -C $extracted
     $desktop = Join-Path $extracted $name
+    if ($InstallerOnly) { Move-Item $candidate $desktop }
+    else { & tar.exe -xf $archive -C $extracted }
     & node (Join-Path $CoreRoot 'scripts/verify-windows-release.mjs') $desktop --for-update
     & (Join-Path $desktop 'resources/runtime/node.exe') (Join-Path $CoreRoot 'scripts/check-desktop-runtimes.mjs') $desktop (Join-Path $publicEvidence 'native-runtimes.json')
     if ($LASTEXITCODE -ne 0) { throw 'Packaged native runtime smoke check failed' }
@@ -158,14 +159,16 @@ $name $Version — Windows x64 Electron 开发版
     if ((Get-Content (Join-Path $gui 'app.stderr.log') -Raw) -match 'EBADF|request pipe is unavailable') { throw 'Desktop teardown reported a pipe failure' }
     if (-not (Get-Content (Join-Path $gui 'result.json') -Raw | ConvertFrom-Json).passed) { throw 'Desktop GUI acceptance failed' }
     $receipt.checks.desktopLaunch = 'passed'
-    $receipt.checks.archiveManifest = 'passed'
-    $receipt.asset = @{name=$asset;bytes=(Get-Item $archive).Length;sha256=(Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()}
+    $receipt.checks[$(if ($InstallerOnly) {'applicationManifest'} else {'archiveManifest'})] = 'passed'
+    if (-not $InstallerOnly) { $receipt.asset = @{name=$asset;bytes=(Get-Item $archive).Length;sha256=(Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()} }
     $receipt.passed = $true
     $receipt | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $publish 'release-receipt.json') -Encoding utf8NoBOM
     if (-not $Development) {
         Copy-Item -LiteralPath $notesPath -Destination (Join-Path $publish 'RELEASE-NOTES.md')
+        if (-not $InstallerOnly) {
         & node (Join-Path $CoreRoot 'scripts/github-update-manifest.mjs') (Join-Path $publish 'release-receipt.json') "ecnu/$name"
         if ($LASTEXITCODE -ne 0) { throw 'GitHub update manifest generation failed' }
+        }
     }
 } catch {
     $receipt.error = $_.Exception.Message

@@ -55,7 +55,7 @@ jobs:
         with:
           go-version: '1.26.6'
           cache: false
-      - name: Build and validate the exact desktop archive
+      - name: Build and validate the desktop application
         shell: pwsh
         env:
           DEVELOPMENT_ONLY: ${{ inputs.development }}
@@ -75,7 +75,7 @@ jobs:
           $script = "./core/scripts/ci-eduwork-$($env:TARGET_PLATFORM)-release.ps1"
           $acceptance = @{}
           if ($env:DEVELOPMENT_ONLY -eq 'true') { $acceptance.Development = $true } else { $acceptance.ReleaseNotesApproved = $true }
-          & $script -CoreRoot ./core -EditionRoot ./core -DistributionConfig config/distributions/generic.json -Version $env:RELEASE_VERSION -ReleaseNotesFile $env:RELEASE_NOTES -Output "$env:RUNNER_TEMP/ew-candidate" @acceptance
+          & $script -CoreRoot ./core -EditionRoot ./core -DistributionConfig config/distributions/generic.json -Version $env:RELEASE_VERSION -ReleaseNotesFile $env:RELEASE_NOTES -Output "$env:RUNNER_TEMP/ew-candidate" -InstallerOnly @acceptance
       - uses: actions/setup-python@v5
         if: matrix.platform == 'macos'
         with:
@@ -83,21 +83,22 @@ jobs:
       - name: Create styled macOS DMG
         if: matrix.platform == 'macos'
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           build="$RUNNER_TEMP/ew-candidate"
-          archives=("$build/publish/"*.zip)
-          [[ ${#archives[@]} -eq 1 && -f "${archives[0]}" ]]
           python -m pip install --only-binary=:all: --require-hashes -r core/scripts/macos-dmg/requirements.txt
-          python core/scripts/macos-dmg/package.py --app "$build/unpacked/EduWork.app" --output "${archives[0]%.zip}.dmg"
+          python core/scripts/macos-dmg/package.py --app "$build/unpacked/EduWork.app" --output "$build/publish/EduWork-$RELEASE_VERSION-macos-arm64-electron.dmg"
+          (cd "$build/publish" && shasum -a 256 *.dmg > "EduWork-$RELEASE_VERSION-macos-arm64-electron.dmg.sha256")
       - name: Create Windows MSI
         if: matrix.platform == 'windows'
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
           $build = "$env:RUNNER_TEMP/ew-candidate"
-          $archives = @(Get-ChildItem "$build/publish/*.zip")
-          if ($archives.Count -ne 1) { throw 'Expected one validated Windows ZIP' }
-          $msi = [IO.Path]::ChangeExtension($archives[0].FullName, '.msi')
+          $msi = [IO.Path]::GetFullPath("$build/publish/EduWork-$env:RELEASE_VERSION-windows-x64-electron.msi")
           ./core/scripts/package-windows-msi.ps1 -App "$build/unpacked/EduWork" -Output $msi
           $install = [IO.Path]::GetFullPath("$env:RUNNER_TEMP/msi-install")
           $log = "$build/evidence-public/msi-install.log"
@@ -150,7 +151,7 @@ jobs:
           set -euo pipefail
           cmp release-files/{macos,windows}-release/RELEASE-NOTES.md
           tag="desktop-v$RELEASE_VERSION"
-          gh release create "$tag" release-files/macos-release/*.dmg release-files/windows-release/*.msi release-files/*-release/*.zip release-files/*-release/*.sha256 \
+          gh release create "$tag" release-files/macos-release/*.dmg release-files/windows-release/*.msi release-files/*-release/*.sha256 \
             --target "$GITHUB_SHA" --title "EduWork $RELEASE_VERSION (macOS and Windows)" \
             --notes-file release-files/macos-release/RELEASE-NOTES.md --prerelease --latest=false --draft
           gh release edit "$tag" --draft=false

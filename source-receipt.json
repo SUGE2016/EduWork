@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.3.6-dev.20260921.2",
   "sourceState": "fork-ci-validation-snapshot",
-  "createdAt": "2026-09-24T15:49:44.843Z",
-  "fileSetSHA256": "10fced579ff8a51f556b96392a1f7806d86f1184a9dac34e261b2abefc0f56d2",
+  "createdAt": "2026-09-25T05:56:29.110Z",
+  "fileSetSHA256": "37be9e0458e6557f10a7833aadc8fabdb36df6f8d65634952269515b849b6929",
   "files": [
     {
       "path": ".gitattributes",
@@ -25,7 +25,7 @@
     },
     {
       "path": ".github/workflows/desktop-candidates.yml",
-      "sha256": "7490d139348403fc5c29cdd4c2fdec61a0a9152d18eb74e52ddaab8b39b8cdd2"
+      "sha256": "254c86be02dd3e365215cdf39a67960f1041a862017ba834223c825bc93a579d"
     },
     {
       "path": ".github/workflows/development-windows.yml",
@@ -741,7 +741,7 @@
     },
     {
       "path": "dsh-electron/scripts/assemble-macos.ps1",
-      "sha256": "f45ed96663b020d027eaf42d8fdd14a377052f28f8520b1a0e60cacadbeb6805"
+      "sha256": "77a4b7bc1d6a02b6aa2d5e9b70a97b2ff9d358d98c27800499e50ab1dac890d9"
     },
     {
       "path": "dsh-electron/scripts/assemble-windows.ps1",
@@ -4457,7 +4457,7 @@
     },
     {
       "path": "scripts/ci-eduwork-macos-release.ps1",
-      "sha256": "cdd99dbd0ecdfc8a69c537beca90724f624246d95a54b1633b155a5897859d30"
+      "sha256": "3db6acf0e74d2e8601ec43c9e805ce349249402bbf6ddfe7f37ed5dce6a96d24"
     },
     {
       "path": "scripts/ci-eduwork-web.ps1",
@@ -4465,7 +4465,7 @@
     },
     {
       "path": "scripts/ci-eduwork-windows-release.ps1",
-      "sha256": "2f5d991d031f5cc3e556fc2dbdcedd03d7199d62532848c8c4ec88d02457b906"
+      "sha256": "2c17a790527a6a477762259b9f8505ba56594a22ff37fdf1183530c84d811bf3"
     },
     {
       "path": "scripts/close-release-test-desktop.mjs",
@@ -4549,7 +4549,7 @@
     },
     {
       "path": "scripts/pack-windows-release.ps1",
-      "sha256": "aaef25c505f1be4140264e53e4b8a8057ed3f5fc278e2eeb0a4e5ccdd47b085a"
+      "sha256": "bfda30c190d184dd4b2d304aa2495b99c15074ef9051274437e2c674999c0d7c"
     },
     {
       "path": "scripts/package-macos-external-config.ps1",
