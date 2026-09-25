@@ -7,6 +7,7 @@ param(
     [Parameter(Mandatory)][string]$Version,
     [string]$ReleaseNotesFile,
     [switch]$Development,
+    [switch]$InstallerOnly,
     [string]$MacUpdateConfig,
     [switch]$ReleaseNotesApproved,
     [switch]$VerifyPublisherBootstrap,
@@ -51,21 +52,26 @@ try {
         $sparkle=Get-Content (Join-Path $sparkleInput 'inputs.json') -Raw | ConvertFrom-Json
         $macOptions=@{SparkleFramework=$sparkle.framework;SparkleFeedURL=$sparkle.feeds.stable;SparkleDevelopmentFeedURL=$sparkle.feeds.development;SparklePublicEDKey=$sparkle.publicEDKey}
     }
-    & (Join-Path $CoreRoot 'dsh-electron/scripts/assemble-macos.ps1') -Product $product -ShellBuild $shellBuild -ElectronRuntime (Join-Path $Output 'electron/runtime') -Output (Join-Path $Output 'desktop') -Version $Version -Node $inputs.node -OpenSSL $inputs.openssl @macOptions
+    & (Join-Path $CoreRoot 'dsh-electron/scripts/assemble-macos.ps1') -Product $product -ShellBuild $shellBuild -ElectronRuntime (Join-Path $Output 'electron/runtime') -Output (Join-Path $Output 'desktop') -Version $Version -Node $inputs.node -OpenSSL $inputs.openssl -DirectoryOnly:$InstallerOnly @macOptions
     $pack=Get-Content (Join-Path $Output 'desktop/release-receipt.json') -Raw | ConvertFrom-Json
     $result.softwareAutoUpdate=$pack.sparkleEnabled;$result.bundleVersion=$pack.bundleVersion;$result.asset=$pack.asset;$result.minimumSystemVersion=$pack.minimumSystemVersion;$result.nativeLockSHA256=$inputs.nativeLockSHA256
-    $archive=Join-Path $Output ('desktop/'+$pack.asset.name)
-    $unpacked=Join-Path $Output 'unpacked';New-Item -ItemType Directory -Path $unpacked | Out-Null
-    & ditto -x -k $archive $unpacked
+    if ($InstallerOnly) {
+        $unpacked=Join-Path $Output 'unpacked'
+        Move-Item (Join-Path $Output 'desktop') $unpacked
+    } else {
+        $archive=Join-Path $Output ('desktop/'+$pack.asset.name)
+        $unpacked=Join-Path $Output 'unpacked';New-Item -ItemType Directory -Path $unpacked | Out-Null
+        & ditto -x -k $archive $unpacked
+    }
     $app=Join-Path $unpacked "$name.app"
     & codesign --verify --deep --strict $app
-    $result.checks.archiveManifest='passed'
+    $result.checks[$(if ($InstallerOnly) {'applicationSignature'} else {'archiveManifest'})]='passed'
     $frozen=Join-Path $app 'Contents/Resources/product'
     & (Join-Path $app 'Contents/Resources/runtime/node') (Join-Path $CoreRoot 'scripts/check-desktop-runtimes.mjs') $app (Join-Path $public 'native-runtimes.json')
     $result.checks.nativeRuntimes='passed'
     $gui=Join-Path $Output 'gui';New-Item -ItemType Directory -Path $gui | Out-Null
     $config=Join-Path $gui 'eduwork.jsonc'
-    # The public edition must create its own config from the actual ZIP.
+    # The public edition must create its own config from the packaged application.
     # An existing synthetic config would hide a broken first-launch template.
     if ($name -ne 'EduWork') {
         @{schemaVersion=1;desktop=@{closeAction='exit'};organizations=@(@{schemaVersion='dsh-oidc/v1alpha1';id='ci-example';displayName='CI example';auth=@{discoveryUrl='https://identity.example.test/.well-known/openid-configuration';expectedIssuer='https://identity.example.test';experimentalOidcLlm=$true;clientId='synthetic-ci-client';identityMode='oidc'}})} | ConvertTo-Json -Depth 8 | Set-Content $config -Encoding utf8NoBOM
@@ -129,7 +135,7 @@ try {
     }
     & codesign --verify --deep --strict $app
     $result.checks.readOnlyApplication='passed'
-    Copy-Item $archive,$($archive+'.sha256') $publish
+    if (-not $InstallerOnly) { Copy-Item $archive,$($archive+'.sha256') $publish }
     if ($notes) { Copy-Item $notes (Join-Path $publish 'RELEASE-NOTES.md') }
     $result.passed=$true
     $result | ConvertTo-Json -Depth 16 | Set-Content (Join-Path $publish 'release-receipt.json') -Encoding utf8NoBOM

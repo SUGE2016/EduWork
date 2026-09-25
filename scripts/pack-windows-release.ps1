@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Candidate, [Parameter(Mandatory)][string]$Output,
-    [switch]$Development, [switch]$ForUpdate)
+    [switch]$Development, [switch]$ForUpdate, [switch]$DirectoryOnly)
 $ErrorActionPreference = 'Stop'
 $Candidate = (Resolve-Path -LiteralPath $Candidate).Path
 $Output = [IO.Path]::GetFullPath($Output)
@@ -36,6 +36,16 @@ function Inventory([string]$Directory, [string]$Prefix) {
 }
 Inventory $Candidate ''
 New-Item -ItemType Directory -Path (Split-Path $Output -Parent) -Force | Out-Null
+$manifest=@{schemaVersion=1;kind='eduwork-portable-release';version=$identity.productVersion;distribution=$identity.distribution;shell='electron';platform='windows-x64';files=@($files.ToArray())}
+if ($ForUpdate) {
+    $manifest.launcherVersion=$identity.productVersion
+    $manifest.flavor='offline'
+    $manifest.launch=@{protocol='eduwork-desktop/v1';shell='electron';executable='EduWork-Electron.exe';migration='wails-host-v1';distribution=$identity.distribution}
+}
+if ($DirectoryOnly) {
+    $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Candidate 'RELEASE-MANIFEST.json') -Encoding utf8NoBOM
+    return
+}
 $stream = [IO.File]::Open($Output,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write)
 $zip = [IO.Compression.ZipArchive]::new($stream,[IO.Compression.ZipArchiveMode]::Create)
 try {
@@ -46,12 +56,6 @@ try {
     }
     $entry=$zip.CreateEntry("$name/RELEASE-MANIFEST.json"); $destination=$entry.Open()
     try {
-        $manifest=@{schemaVersion=1;kind='eduwork-portable-release';version=$identity.productVersion;distribution=$identity.distribution;shell='electron';platform='windows-x64';files=@($files.ToArray())}
-        if ($ForUpdate) {
-            $manifest.launcherVersion=$identity.productVersion
-            $manifest.flavor='offline'
-            $manifest.launch=@{protocol='eduwork-desktop/v1';shell='electron';executable='EduWork-Electron.exe';migration='wails-host-v1';distribution=$identity.distribution}
-        }
         $bytes=[Text.Encoding]::UTF8.GetBytes(($manifest | ConvertTo-Json -Depth 8)); $destination.Write($bytes)
     } finally {$destination.Dispose()}
 } finally {$zip.Dispose();$stream.Dispose()}

@@ -8,6 +8,7 @@ param(
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$Node,
     [Parameter(Mandatory)][string]$OpenSSL,
+    [switch]$DirectoryOnly,
     [string]$ExternalPublisherConfig,
     [ValidateSet('stable','development')][string]$UpdateDefaultPolicy,
     [string]$BundleVersion,
@@ -225,6 +226,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Local ad-hoc signing failed' }
     & codesign --verify --deep --strict $signingApp
     if ($LASTEXITCODE -ne 0) { throw 'Local ad-hoc signature verification failed' }
+    if ($DirectoryOnly) {
+        Remove-Item -LiteralPath $app -Recurse -Force
+        & ditto --noextattr --noqtn --noacl $signingApp $app
+        if ($LASTEXITCODE -ne 0) { throw 'Signed app copy failed' }
+        $release | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $Output 'release-receipt.json') -Encoding utf8NoBOM
+        return
+    }
     Push-Location $signingRoot
     try { & ditto -c -k --sequesterRsrc --keepParent $appName $temporaryArchive }
     finally { Pop-Location }
