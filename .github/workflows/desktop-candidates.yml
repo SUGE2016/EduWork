@@ -98,7 +98,7 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           $build = "$env:RUNNER_TEMP/ew-candidate"
-          $msi = "$build/publish/EduWork-$env:RELEASE_VERSION-windows-x64-electron.msi"
+          $msi = [IO.Path]::GetFullPath("$build/publish/EduWork-$env:RELEASE_VERSION-windows-x64-electron.msi")
           ./core/scripts/package-windows-msi.ps1 -App "$build/unpacked/EduWork" -Output $msi
           $install = [IO.Path]::GetFullPath("$env:RUNNER_TEMP/msi-install")
           $log = "$build/evidence-public/msi-install.log"
