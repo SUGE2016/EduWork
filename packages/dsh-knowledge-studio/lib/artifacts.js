@@ -1,3 +1,4 @@
+import { desktopMediaOptions } from '@eduwork/dsh-artifact-services/desktop-media'
 import { randomUUID, createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import {writeAtomicJSON} from './atomic-json.js'
@@ -379,7 +380,7 @@ export class ArtifactEngine {
       if(!video)throw new Error('视频尚未生成')
       file=await videoPoster(video)
     }
-    if(!file)file=await exportDocument(artifact,artifactExportDirectory(this.#outputRoot,artifact),format)
+    if(!file)file=await exportDocument(artifact,artifactExportDirectory(this.#outputRoot,artifact),format,desktopMediaOptions(this.#ctx))
     return readExportFile({...file,fileName:`${artifact.title.replace(/[<>:\x22/\\|?*\x00-\x1f]/g,'_').slice(0,100).replace(/[. ]+$/,'')||artifact.id}.${format}`})
   }
   async wait(artifactId) {
@@ -408,7 +409,7 @@ export class ArtifactEngine {
         const running=await this.#store.update(artifactId,{status:'running',phase:'export',message:'正在使用已保存正文重试导出',processed:1,total:2,exportState})
         started=true;accept(running)
         const directory=join(this.#outputRoot,artifactId,'export-'+randomUUID().slice(0,8))
-        const file=await exportDocument(artifact,directory,exportState.format,{signal})
+        const file=await exportDocument(artifact,directory,exportState.format,{signal,...desktopMediaOptions(this.#ctx)})
         signal.throwIfAborted()
         // Only this successful file attempt changes completion; original model
         // statistics, content, citations and raw draft remain untouched.
@@ -528,13 +529,13 @@ export class ArtifactEngine {
       const exports=[]
       const exportDirectory=artifactExportDirectory(this.#outputRoot,artifact)
       if(['audio','video'].includes(artifact.kind)) {
-        const media=await renderMedia(ready,exportDirectory,signal,message=>{void this.#store.update(artifact.id,{phase:'render',message}).catch(error=>this.#ctx.logger?.warn?.('Studio progress persistence failed',error))},this.#mediaProviders,{sessionId,workspace,execution})
+        const media=await renderMedia(ready,exportDirectory,signal,message=>{void this.#store.update(artifact.id,{phase:'render',message}).catch(error=>this.#ctx.logger?.warn?.('Studio progress persistence failed',error))},this.#mediaProviders,{sessionId,workspace,execution,...desktopMediaOptions(this.#ctx)})
         const {attachments=[],...file}=media
         exports.push(file,...attachments)
       }
       if(officeFormat) {
         const directory=exportDirectory
-        exports.push(await exportWithOfficeTools(this.#ctx,ready,directory,officeFormat,{execution,signal}) || await exportDocument(ready,directory,officeFormat,{signal}))
+        exports.push(await exportWithOfficeTools(this.#ctx,ready,directory,officeFormat,{execution,signal}) || await exportDocument(ready,directory,officeFormat,{signal,...desktopMediaOptions(this.#ctx)}))
       }
       signal.throwIfAborted()
       await this.#store.update(artifact.id, { status: 'completed', phase: 'done', processed: 2, total: 2, exports, message: '',...(exportState?{exportState:{...exportState,phase:'complete',completedAt:now()}}:{}) })

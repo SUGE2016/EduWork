@@ -23,6 +23,7 @@ function replaceOnce(text, before, after) {
 export function adaptHostProcess(source) {
   let text = source.replaceAll('\r\n', '\n')
   text = replaceOnce(text, "from './host-protocol.ts'", "from './host-protocol.mjs'")
+  text = "import { realpath as resolveHostEntry } from 'node:fs/promises'\n" + text
   text = replaceOnce(text, '    private readonly inspectPort?: number,', `    private readonly inspectPort?: number,
     private readonly options: {
       bootstrap?: unknown,
@@ -35,8 +36,15 @@ export function adaptHostProcess(source) {
   text = replaceOnce(text, "    const entry = join(this.projectDir,", `    const bootstrap = this.options.bootstrap === undefined ? '' : JSON.stringify(this.options.bootstrap) + '\\n'
     if (Buffer.byteLength(bootstrap) > 2048) throw new Error('desktop bootstrap exceeds the maximum length')
     const entry = join(this.projectDir,`)
+  text = replaceOnce(text, '    const child = spawn(this.node, [', `    let resolvedEntry: string
+    try { resolvedEntry = await resolveHostEntry(entry) }
+    catch (cause) { throw new Error('桌面后台入口不可访问：' + entry, { cause }) }
+    this.options.onLog?.('[host-entry] ' + entry + ' -> ' + resolvedEntry + '\\n')
+    const child = spawn(this.node, [`)
+  text = replaceOnce(text, '      entry,', '      resolvedEntry,')
   text = replaceOnce(text, '    this.child = child', `    child.stdin?.once('error', (error) => { this.fail(error) })
     child.stdin?.end(bootstrap)
+    child.once('close', (code, signal) => this.options.onLog?.('[host-exit] code=' + String(code) + ' signal=' + String(signal) + '\\n'))
     this.child = child`)
   text = replaceOnce(text, "child.stderr?.on('data', (chunk: string) => { this.stderr += chunk })", "child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-65536) })")
   text = replaceOnce(text, 'child.stdout?.pipe(process.stdout)', `child.stdout?.setEncoding('utf8')

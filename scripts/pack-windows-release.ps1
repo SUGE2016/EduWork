@@ -20,6 +20,7 @@ $files = [Collections.Generic.List[object]]::new()
 function Inventory([string]$Directory, [string]$Prefix) {
     foreach ($entry in Get-ChildItem -LiteralPath $Directory -Force) {
         $relative = if ($Prefix) { "$Prefix/$($entry.Name)" } else { $entry.Name }
+        if ($relative -eq 'RELEASE-MANIFEST.json') { continue } # A rebuilt manifest cannot hash itself.
         if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Unresolved package link: $relative" }
         if ($relative -match '(^|/)(\.git|\.env|\.env\.local|credentials\.encrypted)(/|$)' -or $relative -match '^(data|evidence)(/|$)') { throw "Private/build data in the release: $relative" }
         if ($entry.PSIsContainer) { Inventory $entry.FullName $relative }

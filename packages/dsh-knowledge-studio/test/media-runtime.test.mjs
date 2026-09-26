@@ -37,6 +37,10 @@ test('managed media uses the supplied browser and rejects incomplete or mixed ru
   assert.equal(runtime.browserExecutable,await realpath(browser))
   assert.equal(runtime.nodeEnv,await realpath(root))
   await assert.rejects(createMediaRuntime({environment:{DSH_MEDIA_NODE_ENV:root}}),/requires absolute/)
+  const provider=async()=>{throw Error('Readiness must not launch a browser')}
+  const native=await createMediaRuntime({environment:{DSH_MEDIA_NODE_ENV:root},browserProvider:provider})
+  assert.equal(native.openBrowser,provider)
+  assert.equal(native.browserExecutable,undefined)
   await writeFile(join(root,'node_modules','remotion','package.json'),'{"version":"4.0.499"}')
   await assert.rejects(createMediaRuntime({environment}),/version mismatch/)
   await assert.rejects(createMediaRuntime({environment,signal:AbortSignal.abort()}),{name:'AbortError'})

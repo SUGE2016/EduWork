@@ -1,4 +1,5 @@
 import { chromium } from 'playwright-core'
+import { desktopBrowser } from './desktop-browser.js'
 import { browserExecutable, directSearchResultURL, isCiteableSearchResultURL, isSearchResultRelevant, searchURL, webSearchResult } from './core.js'
 
 export const name = 'web-search-browser'
@@ -57,16 +58,22 @@ async function search(page, query) {
   throw new Error(`web search failed (${failures.join('; ')})`)
 }
 
-export function createBrowserSearchProvider(ctx) {
+export function createBrowserSearchProvider(ctx, { connectBrowser = desktopBrowser } = {}) {
   let browserPromise
+  let desktop = false
 
   async function searchBrowser() {
     if (browserPromise === undefined) {
-      browserPromise = chromium.launch({
+      browserPromise = (async () => {
+        const managed = await connectBrowser(ctx, 'background', undefined, 'render')
+        if (managed) { desktop = true; return managed }
+        desktop = false
+        return chromium.launch({
         executablePath: browserExecutable(),
         headless: true,
         args: ['--disable-component-update', '--no-default-browser-check'],
-      }).catch(error => {
+        })
+      })().catch(error => {
         browserPromise = undefined
         throw error
       })
@@ -80,10 +87,11 @@ export function createBrowserSearchProvider(ctx) {
     signal?.throwIfAborted()
     // DSH's official web_search may execute several queries concurrently. Each
     // request receives its own isolated page so navigation cannot race.
-    const page = await browser.newPage({ viewport: { width: 1440, height: 960 } })
+    const page = desktop ? await browser.contexts()[0].newPage() : await browser.newPage({ viewport: { width: 1440, height: 960 } })
     const abort = () => { void page.close().catch(() => {}) }
     signal?.addEventListener('abort', abort, { once: true })
     try {
+      signal?.throwIfAborted()
       const result = await search(page, request.query)
       signal?.throwIfAborted()
       return result

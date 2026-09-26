@@ -30,7 +30,8 @@
     "./transcription-openai": "./lib/transcription-openai.js",
     "./transcription-whisper": "./lib/transcription-whisper.js",
     "./transcription-dsh": "./lib/transcription-dsh.js",
-    "./transcription-components": "./lib/transcription-components.js"
+    "./transcription-components": "./lib/transcription-components.js",
+    "./desktop-media": "./lib/desktop-media.js"
   },
   "files": [
     "lib/**/*.js",

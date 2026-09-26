@@ -1,3 +1,4 @@
+import { desktopMediaOptions } from './desktop-media.js'
 import {Service} from '@deepseek-ai/cordis'
 import {createMediaProviders} from './providers.js'
 import {apply as installOfficeTools} from './office-tools.js'
@@ -33,7 +34,7 @@ export class ArtifactServices extends Service {
     }
   }
   registerSpeechProvider(provider) {return this.media.registerSpeech(provider)}
-  mediaReadiness() {return inspectMediaRuntime()}
+  mediaReadiness() {return inspectMediaRuntime(desktopMediaOptions(this.ctx))}
   registerImageProvider(provider) {return this.images.register(provider)}
   refreshImageProviders() {this.ctx.emit('artifact-services/images-changed')}
   registerTranscriptionProvider(provider) {return this.transcription.register(provider)}

@@ -91,6 +91,13 @@ jobs:
           python -m pip install --only-binary=:all: --require-hashes -r core/scripts/macos-dmg/requirements.txt
           python core/scripts/macos-dmg/package.py --app "$build/unpacked/EduWork.app" --output "$build/publish/EduWork-$RELEASE_VERSION-macos-arm64-electron.dmg"
           (cd "$build/publish" && shasum -a 256 *.dmg > "EduWork-$RELEASE_VERSION-macos-arm64-electron.dmg.sha256")
+      - name: Cache Windows installer inputs
+        if: matrix.platform == 'windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/eduwork-wix-cache
+          key: wix3141-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: wix3141-${{ runner.os }}-
       - name: Create Windows MSI
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -99,13 +106,18 @@ jobs:
         run: |
           $build = "$env:RUNNER_TEMP/ew-candidate"
           $msi = [IO.Path]::GetFullPath("$build/publish/EduWork-$env:RELEASE_VERSION-windows-x64-electron.msi")
-          ./core/scripts/package-windows-msi.ps1 -App "$build/unpacked/EduWork" -Output $msi
+          ./core/scripts/package-windows-msi.ps1 -App "$build/unpacked/EduWork" -Output $msi -CacheDirectory "$env:RUNNER_TEMP/eduwork-wix-cache"
+          ./core/scripts/test-windows-msi.ps1 -Msi $msi -App "$build/unpacked/EduWork"
           $install = [IO.Path]::GetFullPath("$env:RUNNER_TEMP/msi-install")
           $log = "$build/evidence-public/msi-install.log"
           $process = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart INSTALLFOLDER=`"$install`" /l*v `"$log`"" -Wait -PassThru
           if ($process.ExitCode -notin 0,3010) { throw "MSI installation failed: $($process.ExitCode)" }
           try {
             if ((Get-FileHash "$install/EduWork-Electron.exe").Hash -ne (Get-FileHash "$build/unpacked/EduWork/EduWork-Electron.exe").Hash) { throw 'Installed executable differs' }
+            $shortcut = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'EduWork.lnk'
+            if (-not (Test-Path -LiteralPath $shortcut)) { throw 'Default desktop shortcut is missing' }
+            $shell = New-Object -ComObject WScript.Shell
+            if ($shell.CreateShortcut($shortcut).TargetPath -ne (Join-Path $install 'EduWork-Electron.exe')) { throw 'Desktop shortcut has the wrong target' }
             New-Item -ItemType Directory "$install/data" -Force | Out-Null
             'synthetic user data' | Set-Content "$install/data/installer-test.txt"
             'synthetic user configuration' | Set-Content "$install/config/eduwork.jsonc"
@@ -114,7 +126,18 @@ jobs:
             if ($process.ExitCode -notin 0,3010) { throw "MSI uninstallation failed: $($process.ExitCode)" }
           }
           if (Test-Path "$install/EduWork-Electron.exe") { throw 'MSI did not uninstall the application' }
+          if (Test-Path -LiteralPath $shortcut) { throw 'MSI did not remove the desktop shortcut' }
           if ((Get-Content "$install/data/installer-test.txt") -ne 'synthetic user data' -or (Get-Content "$install/config/eduwork.jsonc") -ne 'synthetic user configuration') { throw 'MSI removed user data or configuration' }
+          # A second installation checks the unchecked option and retained user configuration.
+          $process = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart DESKTOP_SHORTCUT=0 INSTALLFOLDER=`"$install`" /l*v `"$build/evidence-public/msi-no-shortcut.log`"" -Wait -PassThru
+          if ($process.ExitCode -notin 0,3010) { throw "MSI no-shortcut installation failed: $($process.ExitCode)" }
+          try {
+            if (Test-Path -LiteralPath $shortcut) { throw 'Unchecked desktop shortcut was installed' }
+            if ((Get-Content "$install/config/eduwork.jsonc") -ne 'synthetic user configuration') { throw 'Reinstallation replaced user configuration' }
+          } finally {
+            $process = Start-Process msiexec.exe -ArgumentList "/x `"$msi`" /qn /norestart" -Wait -PassThru
+            if ($process.ExitCode -notin 0,3010) { throw "MSI second uninstallation failed: $($process.ExitCode)" }
+          }
       - name: Retain validation reports
         if: always()
         uses: actions/upload-artifact@v4

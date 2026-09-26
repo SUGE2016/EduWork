@@ -42,7 +42,7 @@ export async function renderMedia(request,directory,signal,onProgress=()=>{},pro
   await writeFile(join(directory,'timeline.json'),JSON.stringify({fps,options,scenes:scenes.map(({audio,...s})=>s)},null,2))
   onProgress('准备视频渲染')
   const inputProps={scenes,fps,aspect:options.aspect,subtitles:options.subtitles,bgm}
-  const runtime=context.runtime || await createMediaRuntime({signal})
+  const runtime=context.runtime || await createMediaRuntime({signal,browserProvider:context.browserProvider})
   const prepared=await prepareComposition({entryPoint:join(here,'video-template.js'),outDir:join(directory,'bundle'),id:'StudioVideo',inputProps,runtime})
   const format=request.kind==='audio'?'wav':'mp4',output=join(directory,request.id+'.'+format)
   let previous=-1

@@ -22,6 +22,8 @@ import { updateCoordinator } from './update-coordinator.mjs'
 import { publisherBootstrap, preparePublisherContent, retryPublisherContent } from './publisher-bootstrap.mjs'
 import { desktopRelaunchOptions } from './desktop-restart.mjs'
 import { attachAppActivation, attachWindowVisibility } from './window-visibility.mjs'
+import { startBrowserServer } from './browser-server.mjs'
+import { createRequire } from 'node:module'
 
 export function configureWindowNavigation(window) {
   attachExternalNavigation(window.webContents, url => shell.openExternal(url), () => {
@@ -81,6 +83,7 @@ export function configureEduworkPaths() {
 export function prepareEduworkDesktop() { return lifecycle.prepare(prepareDesktop) }
 async function prepareDesktop() {
   lifecycle.check()
+  if (process.platform === 'win32') Menu.setApplicationMenu(null)
   migrationLaunch = await readMigrationLaunch({root:paths.root,settings,argv:process.argv})
   const startupBlue = process.platform === 'darwin' && savedEduworkStyle() === 'dsh'
   const startupBackground = startupBlue ? '#f6f7f9' : '#faf8f4'
@@ -91,6 +94,7 @@ async function prepareDesktop() {
     icon: startupIcon,
     backgroundColor: startupBackground, webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true } })
   attachWindowVisibility({ app, window: progressWindow, isQuitting, shouldExit: () => false, hasTray: () => Boolean(tray) })
+  if (process.platform !== 'darwin') progressWindow.removeMenu()
   const title = String(settings.productName).replace(/[<>&"']/gu, '')
   const logo = 'data:image/png;base64,' + readFileSync(startupIcon).toString('base64')
   await progressWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent('<!doctype html><meta charset="utf-8"><style>body{font:16px system-ui;padding:36px;color:#313744;background:' + startupBackground + '}progress{width:100%;margin-top:20px;accent-color:' + startupAccent + '}h2{display:flex;align-items:center;gap:12px}</style><h2><img alt="" width="40" height="40" src="' + logo + '">正在启动 ' + title + '</h2><p>正在准备本机工作环境…</p><progress></progress>'))
@@ -158,7 +162,11 @@ async function prepareDesktop() {
   taskNotifications = new TaskNotifications({ foreground: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && mainWindow.isFocused()),
     show: () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus() } },
     publish: value => notificationAdapter.publish(value), dismiss: () => notificationAdapter.dismiss(), changed: () => refreshTray() })
+  const browserServer = process.env.EDUWORK_EXPERIMENTAL_ELECTRON_BROWSER === '1'
+    ? await startBrowserServer({ BrowserWindow, WebSocketServer: createRequire(join(paths.product, 'd/package.json'))('ws').WebSocketServer, version: process.versions.chrome }) : undefined
+  if (browserServer) lifecycle.trackBridge(browserServer)
   const bridge = await startNativeBridge({ vault, openExternal: url => shell.openExternal(url),
+    browserConnection: browserServer?.connection,
     attention: body => taskNotifications.handle(body),
     workbench: async action => portableUpdates && action !== 'diagnostics' ? portableUpdates.action(action) : workbenchAction({ action, config: paths.config, version: settings.productVersion, shell: 'electron', logs: paths.logs, root: paths.root, product: paths.product, home: paths.home,
       updateStatus: action === 'diagnostics' && portableUpdates ? await portableUpdates.action('status').catch(error=>({error:error.message})) : undefined }),
@@ -209,6 +217,7 @@ export function attachDockTheme(window) {
 }
 
 export async function attachDesktopWindow(window) {
+  if (process.platform === 'win32') Menu.setApplicationMenu(null)
   mainWindow = window
   window.setTitle(settings.productName)
   window.setIcon(paths.icon)
@@ -276,6 +285,7 @@ export async function showDesktopFailure(error) {
     attachWindowVisibility({ app, window: progressWindow, isQuitting, shouldExit: () => false, hasTray: () => Boolean(tray) })
   }
   progressWindow.setSize(660, 470)
+  if (process.platform !== 'darwin') progressWindow.removeMenu()
   const needsConfiguration = error.code === 'EDUWORK_BOOTSTRAP_REQUIRED'
   let importing = false
   progressWindow.webContents.on('will-navigate', (event, url) => {

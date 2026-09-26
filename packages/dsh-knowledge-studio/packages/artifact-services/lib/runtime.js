@@ -4,14 +4,14 @@ import {realpath,readFile,stat} from 'node:fs/promises'
 import {defaultMusicRoot} from './music.js'
 
 /** Resolve dependencies without preparing a browser (e.g. for FFmpeg posters). */
-async function resolveMediaDependencies({bgmRoot=defaultMusicRoot,signal,environment=process.env}={}) {
+async function resolveMediaDependencies({bgmRoot=defaultMusicRoot,signal,environment=process.env,browserProvider}={}) {
   signal?.throwIfAborted()
   const configured=environment.DSH_MEDIA_NODE_ENV || environment.ECNU_AGENT_NODE_ENV
   const browserPath=environment.DSH_MEDIA_BROWSER || environment.ECNU_AGENT_REMOTION_BROWSER
   if(configured || browserPath) {
-    if(!configured || !browserPath || !isAbsolute(configured) || !isAbsolute(browserPath))throw new Error('Managed media runtime requires absolute environment and browser paths')
-    const nodeEnv=await realpath(configured),browserExecutable=await realpath(browserPath)
-    if(!(await stat(browserExecutable)).isFile())throw new Error('Managed media browser is unavailable')
+    if(!configured || !isAbsolute(configured) || (!browserProvider && (!browserPath || !isAbsolute(browserPath))))throw new Error('Managed media runtime requires absolute environment and browser paths')
+    const nodeEnv=await realpath(configured),browserExecutable=browserProvider?undefined:await realpath(browserPath)
+    if(browserExecutable && !(await stat(browserExecutable)).isFile())throw new Error('Managed media browser is unavailable')
     const nodeModules=await realpath(join(nodeEnv,'node_modules'))
     const rel=relative(nodeEnv,nodeModules)
     if(isAbsolute(rel)||rel==='..'||rel.startsWith('..\\')||rel.startsWith('../'))throw new Error('Managed media modules escape the runtime')
@@ -22,17 +22,17 @@ async function resolveMediaDependencies({bgmRoot=defaultMusicRoot,signal,environ
       if(manifest.version!==version)throw new Error(`Managed media version mismatch: ${name}@${manifest.version}; expected ${version}`)
     }
     signal?.throwIfAborted()
-    return {managedRequire,nodeModules,nodeEnv,browserExecutable,bgmRoot,signal}
+    return {managedRequire,nodeModules,nodeEnv,browserExecutable,bgmRoot,signal,openBrowser:browserProvider}
   }
   const managedRequire=createRequire(import.meta.url)
   const nodeModules=dirname(dirname(managedRequire.resolve('remotion/package.json')))
-  return {managedRequire,nodeModules,nodeEnv:dirname(nodeModules),bgmRoot,signal}
+  return {managedRequire,nodeModules,nodeEnv:dirname(nodeModules),bgmRoot,signal,openBrowser:browserProvider}
 }
 
 /** A deployment can inject its pinned runtime. No project code chooses modules. */
 export async function createMediaRuntime(options={}) {
   const runtime=await resolveMediaDependencies(options)
-  if(!runtime.browserExecutable) {
+  if(!runtime.browserExecutable && !runtime.openBrowser) {
     const {ensureBrowser}=runtime.managedRequire('@remotion/renderer')
     const browser=await ensureBrowser()
     if(!browser.path)throw new Error('Media render browser is unavailable')
@@ -54,7 +54,7 @@ export async function getMediaFFmpegPath({runtime,...options}={}) {
 export async function inspectMediaRuntime(options={}) {
   try {
     const runtime=await resolveMediaDependencies(options)
-    if(!runtime.browserExecutable)return {available:false,reason:'本机媒体渲染浏览器尚未配置，请准备媒体组件。'}
+    if(!runtime.browserExecutable && !runtime.openBrowser)return {available:false,reason:'本机媒体渲染浏览器尚未配置，请准备媒体组件。'}
     const ffmpeg=await getMediaFFmpegPath({runtime})
     if(!(await stat(ffmpeg)).isFile())return {available:false,reason:'本机 FFmpeg 尚未准备好。'}
     return {available:true}

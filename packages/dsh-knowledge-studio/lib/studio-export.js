@@ -27,7 +27,19 @@ function reportHTML(artifact) {
     return ''
   }).join('')+'</article>'
 }
-export async function exportDocument(artifact, directory, format, {signal}={}) {
+async function exportBrowser(signal, provider) {
+  const {chromium}=await import('playwright-core')
+  const browser=provider?await provider(signal):await chromium.launch({executablePath:(await createMediaRuntime({signal})).browserExecutable,headless:true})
+  const abort=()=>{void browser.close().catch(()=>{})}
+  if(signal?.aborted){await browser.close();signal.throwIfAborted()}
+  signal?.addEventListener('abort',abort,{once:true})
+  return {async page(viewport) {
+    const page=provider?await browser.contexts()[0].newPage():await browser.newPage(viewport?{viewport}:undefined)
+    if(provider && viewport)await page.setViewportSize(viewport)
+    return page
+  },async close(){signal?.removeEventListener('abort',abort);await browser.close()}}
+}
+export async function exportDocument(artifact, directory, format, {signal,pageBrowserProvider}={}) {
   signal?.throwIfAborted()
   await mkdir(directory, { recursive:true })
   const path = join(directory, `${artifact.id}.${format}`)
@@ -36,14 +48,12 @@ export async function exportDocument(artifact, directory, format, {signal}={}) {
   else if (format === 'md') await writeFile(path, contentMarkdown(artifact))
   else if (format === 'svg' && artifact.kind === 'mindmap') await writeFile(path,mindmapSVG(content,artifact.title))
   else if (format === 'png' && artifact.kind === 'mindmap') {
-    const {chromium}=await import('playwright-core')
-    let browserExecutable
-    try {({browserExecutable}=await createMediaRuntime())}
+    let browser
+    try {browser=await exportBrowser(signal,pageBrowserProvider)}
     catch {throw new Error('服务端 PNG 导出需要宿主配置图形运行时；也可以在 Studio 界面下载 PNG，或通过此接口导出 SVG。')}
     const layout=layoutMindmap(content),size=mindmapPNGSize(layout.width,layout.height)
-    const browser=await chromium.launch({executablePath:browserExecutable,headless:true})
     try {
-      const page=await browser.newPage({viewport:{width:size.width,height:size.height},deviceScaleFactor:1})
+      const page=await browser.page({width:size.width,height:size.height})
       await page.route('**/*',route=>route.abort())
       const svg=Buffer.from(mindmapSVG(content,artifact.title)).toString('base64')
       await page.setContent(`<body style="margin:0;background:white"><img alt="思维导图" style="display:block;width:100vw;height:100vh" src="data:image/svg+xml;base64,${svg}"></body>`)
@@ -66,11 +76,9 @@ export async function exportDocument(artifact, directory, format, {signal}={}) {
     await writeFile(path, `<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${escapeHTML(artifact.title)}</title><style>body{margin:0;background:#f6f4ef;color:#202e3b;font:20px/1.7 system-ui}section{box-sizing:border-box;min-height:100vh;padding:7vw;page-break-after:always;border-bottom:1px solid #ddd}h1{font-size:48px;max-width:1000px}li{margin:18px 0}small,p{color:#64717a}pre{white-space:pre-wrap;padding:5vw;font:inherit}.report{box-sizing:border-box;max-width:860px;margin:auto;padding:40px;background:white;font-size:16px;overflow-wrap:anywhere}.report h1{font-size:32px;line-height:1.3}.report h2{font-size:23px;margin-top:1.6em}.report h3{font-size:19px}.report h1,.report h2,.report h3,.report h4,.report h5,.report h6{break-after:avoid}.report p{color:inherit;orphans:3;widows:3}.report code{white-space:pre-wrap;font:0.9em/1.6 monospace}.report table{border-collapse:collapse;width:100%;font-size:0.9em;table-layout:fixed}.report th,.report td{border:1px solid #cdd3d8;padding:8px;text-align:left}.report th{background:#eef1f3}.report tr{break-inside:avoid}@media print{body:has(.report){background:white}.report{max-width:none;padding:0;font-size:11pt}.report h1{font-size:24pt}.report h2{font-size:17pt}.report h3{font-size:14pt}section{min-height:0;height:95vh}}</style>${body}</html>`)
   } else if (format === 'pdf') {
     const html=await exportDocument(artifact,directory,'html')
-    const {chromium}=await import('playwright-core')
-    const {browserExecutable}=await createMediaRuntime()
-    const browser=await chromium.launch({executablePath:browserExecutable,headless:true})
+    const browser=await exportBrowser(signal,pageBrowserProvider)
     try {
-      const page=await browser.newPage();await page.route('**/*',route=>route.abort())
+      const page=await browser.page();await page.route('**/*',route=>route.abort())
       await page.setContent(await readFile(html.path,'utf8'))
       await page.evaluate(()=>document.fonts.ready)
       await page.pdf(artifact.kind==='slides'?{path,preferCSSPageSize:true,printBackground:true,margin:{top:0,bottom:0,left:0,right:0}}:{path,format:'A4',printBackground:true,margin:{top:'12mm',bottom:'12mm',left:'10mm',right:'10mm'}})

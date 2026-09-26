@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="zh-cn" Codepage="936" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="WelcomeDlg_Title">[ProductName] 安装程序</String>
+  <String Id="WelcomeDlgTitle">{\WixUI_Font_Bigger}欢迎安装 [ProductName]</String>
+  <String Id="WelcomeDlgDescription">__WELCOME_TEXT__&#13;&#10;&#13;&#10;安装向导将引导你完成安装。</String>
+  <String Id="ExitDialog_Title">[ProductName] 安装程序</String>
+  <String Id="ExitDialogTitle">{\WixUI_Font_Bigger}安装已完成</String>
+  <String Id="ExitDialogDescription">[ProductName] 安装向导已完成。&#13;&#10;点击“完成”关闭此窗口。</String>
+</WixLocalization>

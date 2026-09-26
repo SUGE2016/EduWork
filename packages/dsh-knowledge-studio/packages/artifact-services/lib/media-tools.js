@@ -1,3 +1,4 @@
+import { desktopMediaOptions } from './desktop-media.js'
 import {defineTool} from '@deepseek-ai/dsh-tools'
 import {realpath} from 'node:fs/promises'
 import {relative} from 'node:path'
@@ -48,7 +49,7 @@ export function installMediaTools(ctx,service) {
       if(!['audio','video'].includes(spec.kind)||!Array.isArray(spec.segments)||!spec.segments.length||spec.segments.length>100)throw new Error('Invalid media specification')
       await requireMediaRuntime()
       const root=await workspace(ctx,exec),directory=await jobDirectory(root)
-      const result=await renderMedia({...spec,id:'media'},directory,exec.signal,()=>{},service.media,{execution:exec,sessionId:exec.agent.session.id})
+      const result=await renderMedia({...spec,id:'media'},directory,exec.signal,()=>{},service.media,{execution:exec,sessionId:exec.agent.session.id,...desktopMediaOptions(ctx)})
       const relativePath=relative(root,result.path).replaceAll('\\','/')
       return {reportJSON:JSON.stringify({...result,relativePath}),relativePath,mime:spec.kind==='audio'?'audio/wav':'video/mp4'}
     }}))
@@ -57,7 +58,7 @@ export function installMediaTools(ctx,service) {
       name:{type:'string'},workspace:{type:'string'},input:{type:'string'},'scene-id':{type:'string'},'job-hash':{type:'string'},'track-id':{type:'string'},destination:{type:'string'}},output,timeoutMs:1200000,
     async execute(args,exec){
       await requireMediaRuntime()
-      const root=await workspace(ctx,exec),runtime=await createMediaRuntime({signal:exec.signal})
+      const root=await workspace(ctx,exec),runtime=await createMediaRuntime({signal:exec.signal,...desktopMediaOptions(ctx)})
       const {action,...options}=args
       const report=await runVideoCommand(action,{...options,'project-root':root},runtime)
       const file=report?.outputs?.video

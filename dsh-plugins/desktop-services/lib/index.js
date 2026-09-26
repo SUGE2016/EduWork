@@ -1,6 +1,7 @@
 import { Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { DesktopAttention, notificationDefaults, observeDesktopAttention } from './attention.js'
+import { renderBrowser, pageBrowser } from './browser-provider.js'
 
 // Host-only seam. No Remote decorator: the renderer cannot choose an arbitrary
 // external URL or obtain the native bridge credential through this service.
@@ -67,5 +68,25 @@ export default class DesktopServices extends Service {
       body: JSON.stringify({ url: url.href }), signal: AbortSignal.timeout(15_000),
     })
     if (!response.ok) throw new Error('The system browser could not be opened')
+  }
+  async browserConnection(signal) {
+    const { nativeBridge } = await this.ctx.desktopBoundary.ready
+    const response = await fetch(nativeBridge.baseURL + '/v1/extensions/browser-connection', {
+      method: 'POST', headers: { authorization: 'Bearer ' + nativeBridge.token, 'content-type': 'application/json' },
+      body: '{}', signal,
+    })
+    if (response.status === 501) return null
+    if (!response.ok) throw Error('Electron browser connection unavailable')
+    return response.json()
+  }
+  async renderBrowser(signal) {
+    const connection = await this.browserConnection(signal)
+    if (!connection) throw Error('Electron rendering is unavailable')
+    return renderBrowser(connection, signal)
+  }
+  async pageBrowser(signal) {
+    const connection = await this.browserConnection(signal)
+    if (!connection) throw Error('Electron page rendering is unavailable')
+    return pageBrowser(connection, signal)
   }
 }

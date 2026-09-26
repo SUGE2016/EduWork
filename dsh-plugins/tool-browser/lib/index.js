@@ -2,6 +2,7 @@ import path from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { browserExecutable, browserPresentationMeta, isPrivateTarget, normalizeURL, untrustedPage } from './core.js'
+import { desktopBrowser } from './desktop-browser.js'
 
 export const name = 'tool-browser'
 export const inject = ['tools', 'fs', 'permissionPresets']
@@ -41,35 +42,50 @@ async function collect(page) {
 
 export function apply(ctx) {
   let state
+  let disposed = false
 
   async function close() {
     const current = state
     state = undefined
-    await current?.context.close().catch(() => {})
+    await (current?.browser ? current.browser.close() : current?.context.close())?.catch(() => {})
   }
 
-  async function pageFor(mode) {
+  async function pageFor(mode, signal) {
+    signal?.throwIfAborted()
+    if (disposed) throw new Error('Managed browser service is closed')
     if (state?.mode !== mode) {
       const resumeURL = state?.page?.url()
       await close()
       const { chromium } = await import('playwright-core')
-      const executablePath = browserExecutable()
+      const browser = await desktopBrowser(ctx, mode, signal)
       // Background and visible modes deliberately share one isolated product
       // profile. Switching modes closes the previous context first, so the
       // user keeps cookies/login state without ever touching their own browser.
       const userDataDir = profileRoot()
-      const context = await chromium.launchPersistentContext(userDataDir, {
-        executablePath,
+      const context = browser ? browser.contexts()[0] : await chromium.launchPersistentContext(userDataDir, {
+        executablePath: browserExecutable(),
         headless: mode === 'background',
         acceptDownloads: false,
         viewport: { width: 1440, height: 960 },
         args: ['--disable-component-update', '--no-default-browser-check'],
       })
-      const pages = context.pages()
-      state = { context, mode, page: pages[0] ?? await context.newPage() }
-      if (typeof resumeURL === 'string' && /^https?:/i.test(resumeURL)) {
-        await state.page.goto(resumeURL, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {})
-      }
+      const cancelSetup = () => { void (browser ? browser.close() : context.close()).catch(() => {}) }
+      signal?.addEventListener('abort', cancelSetup, { once: true })
+      try {
+        signal?.throwIfAborted()
+        if (disposed) throw new Error('Managed browser service is closed')
+        const pages = context.pages()
+        state = { context, browser, mode, page: pages[0] ?? await context.newPage() }
+        if (typeof resumeURL === 'string' && /^https?:/i.test(resumeURL)) {
+          await state.page.goto(resumeURL, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {})
+        }
+        signal?.throwIfAborted()
+        if (disposed) throw new Error('Managed browser service is closed')
+      } catch (error) {
+        state = undefined
+        await (browser ? browser.close() : context.close()).catch(() => {})
+        throw error
+      } finally { signal?.removeEventListener('abort', cancelSetup) }
     }
     return state.page
   }
@@ -112,7 +128,11 @@ export function apply(ctx) {
         return { action: 'close', text: 'Managed browser closed.' }
       }
       const requestedMode = args.action === 'visible' ? 'visible' : (args.mode ?? state?.mode ?? 'background')
-      const page = await pageFor(requestedMode)
+      const page = await pageFor(requestedMode, exec.signal)
+      const abort = () => { void close() }
+      if (exec.signal?.aborted) { await close(); exec.signal.throwIfAborted() }
+      exec.signal?.addEventListener('abort', abort, { once: true })
+      try {
       if (args.action === 'navigate') {
         await page.goto(normalizeURL(args.url), { waitUntil: 'domcontentloaded', timeout: 45_000 })
         return { action: 'navigate', ...await collect(page) }
@@ -151,10 +171,11 @@ export function apply(ctx) {
         return { action: 'screenshot', path: relativePath, ...await collect(page) }
       }
       throw new Error(`unsupported browser action: ${args.action}`)
+      } finally { exec.signal?.removeEventListener('abort', abort) }
     },
     presentCall: args => ({ card: 'generic', title: `Browser · ${args.action}`, kind: sensitiveActions.has(args.action) ? 'execute' : 'read', rawInput: args.url ?? args.text }),
     presentResult: (_args, result) => result.isError ? undefined : ({ card: 'generic', title: 'Browser completed' }),
   }))
 
-  ctx.effect(() => () => { void close() })
+  ctx.effect(() => () => { disposed = true; return close() })
 }

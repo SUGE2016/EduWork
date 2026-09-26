@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <UI Id="EduWorkUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Microsoft YaHei UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Microsoft YaHei UI" Size="14" Bold="yes" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Microsoft YaHei UI" Size="10" Bold="yes" Red="$(var.BrandRed)" Green="$(var.BrandGreen)" Blue="$(var.BrandBlue)" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+      <DialogRef Id="WelcomeDlg" />
+      <DialogRef Id="ExitDialog" />
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="MaintenanceWelcomeDlg" />
+      <DialogRef Id="MaintenanceTypeDlg" />
+      <DialogRef Id="VerifyReadyDlg" />
+      <Dialog Id="EduWorkInstallDlg" Width="370" Height="270" Title="[ProductName] 安装程序">
+        <Control Id="Banner" Type="Bitmap" X="0" Y="0" Width="370" Height="44" Text="WixUI_Bmp_Banner" TabSkip="yes" />
+        <Control Id="Heading" Type="Text" X="20" Y="53" Width="330" Height="20" Text="{\WixUI_Font_Bigger}准备安装" />
+        <Control Id="Scope" Type="Text" X="20" Y="79" Width="330" Height="18" Text="仅为当前 Windows 用户安装 [ProductName]。" />
+        <Control Id="PathLabel" Type="Text" X="20" Y="106" Width="330" Height="15" Text="安装位置" />
+        <Control Id="Path" Type="PathEdit" X="20" Y="124" Width="264" Height="20" Property="WIXUI_INSTALLDIR" Indirect="yes" />
+        <Control Id="Browse" Type="PushButton" X="292" Y="124" Width="58" Height="20" Text="浏览…">
+          <Publish Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+          <Publish Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+        </Control>
+        <Control Id="Desktop" Type="CheckBox" X="20" Y="158" Width="330" Height="18" Property="DESKTOP_SHORTCUT" CheckBoxValue="1" Text="创建桌面快捷方式" />
+        <Control Id="Launch" Type="CheckBox" X="20" Y="185" Width="330" Height="18" Property="LAUNCH_AFTER_INSTALL" CheckBoxValue="1" Text="安装完成后启动 [ProductName]" />
+        <Control Id="Line" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Back" Type="PushButton" X="168" Y="243" Width="58" Height="17" Text="上一步">
+          <Publish Event="NewDialog" Value="WelcomeDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="234" Y="243" Width="58" Height="17" Text="取消" Cancel="yes">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="Install" Type="PushButton" X="300" Y="243" Width="58" Height="17" Text="安装" Default="yes">
+          <Publish Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+          <Publish Event="DoAction" Value="WixUIValidatePath" Order="2">1</Publish>
+          <Publish Event="SpawnDialog" Value="InvalidDirDlg" Order="3">WIXUI_INSTALLDIR_VALID &lt;&gt; "1"</Publish>
+          <Publish Event="EndDialog" Value="Return" Order="4">WIXUI_INSTALLDIR_VALID = "1"</Publish>
+        </Control>
+      </Dialog>
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4">WIXUI_INSTALLDIR_VALID &lt;&gt; "1"</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="EduWorkInstallDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">Installed AND NOT PATCH</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">Installed AND PATCH</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="SetLaunchTarget" Order="1">LAUNCH_AFTER_INSTALL = "1" AND NOT Installed AND NOT REMOVE AND UILevel = 5</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchEduWork" Order="2">LAUNCH_AFTER_INSTALL = "1" AND NOT Installed AND NOT REMOVE AND UILevel = 5</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+    </UI>
+    <UIRef Id="WixUI_Common" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <CustomAction Id="SetLaunchTarget" Property="WixShellExecTarget" Value="[INSTALLFOLDER]$(var.AppExecutable)" />
+    <CustomAction Id="LaunchEduWork" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+  </Fragment>
+</Wix>

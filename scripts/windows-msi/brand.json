@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "distribution": "eduwork",
+  "productName": "EduWork",
+  "manufacturer": "EduWork",
+  "installDirectory": "EduWork",
+  "registryKey": "Software\\EduWork\\Installer",
+  "upgradeCode": "9DBD2F2A-F123-4FC4-B6AB-24253BE8CF3D",
+  "executable": "EduWork-Electron.exe",
+  "icon": "../../assets/eduwork/icon.ico",
+  "logo": "../../assets/eduwork/icon-512.png",
+  "accentColor": "#9f2636",
+  "welcomeText": "将资料转化为工作成果。"
+}

@@ -4,6 +4,8 @@
 
 更新源的部署要求、OSS 与 GitHub 的差别见[更新源指南](UPDATES.md)。Windows 公版默认 GitHub，机构可配置静态源；两者共用下载与安装器。CI 公测包与开发包均包含更新契约，正式发布前仍须验收实际桌面升级。
 
+Windows MSI 的品牌向导、静默安装选项和 CI 签名接入方案见 [Windows 安装器说明](WINDOWS-INSTALLER.md)。
+
 ## 发行分工
 
 GitHub 常规桌面 Release 面向长期维护的 Electron 公版和 ECNU 版，按已验收的 Windows/macOS 系统与架构构建。日常临时客户端、Go/Wails 过渡包及旧版升级演练由维护者在本地制作和验收，不加入 GitHub 桌面打包矩阵，不创建临时 Release。Go 壳源码和必要回归仍保留。
