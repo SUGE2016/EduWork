@@ -11,13 +11,15 @@ import {renderBrowser,pageBrowser} from '../dsh-plugins/desktop-services/lib/bro
 import {prepareComposition,renderComposition,renderFrame} from '../packages/dsh-knowledge-studio/packages/artifact-services/lib/remotion.js'
 const [appPath,evidencePath]=process.argv.slice(2)
 if(!appPath||!evidencePath)throw Error('Usage: node scripts/probe-electron-browser-reuse.mjs <assembled-app> <new-evidence-directory>')
-const application=resolve(appPath),root=resolve(evidencePath),runtime=join(application,'resources/product/d')
+const mac=process.platform==='darwin'
+const application=resolve(appPath),root=resolve(evidencePath),runtime=join(application,mac?'Contents/Resources/product/d':'resources/product/d')
 const require=createRequire(join(runtime,'package.json')), {chromium}=require('playwright-core'),WS=require('ws')
 assert.match(await readFile(join(runtime,'node_modules/@eduwork/dsh-knowledge-studio/lib/studio-export.js'),'utf8'),/pageBrowserProvider/,'Use an assembled candidate containing the browser source overlay')
 const repository=resolve(dirname(fileURLToPath(import.meta.url)),'..')
 await mkdir(root)
-const harness=join(root,'harness')
-await mkdir(join(harness,'resources/app'),{recursive:true})
+const harness=join(root,mac?'BrowserProbe.app':'harness')
+const shellResources=join(harness,mac?'Contents/Resources':'resources')
+await mkdir(join(shellResources,'app'),{recursive:true})
 async function mirror(source,target) {
   await mkdir(target,{recursive:true})
   for(const entry of await readdir(source,{withFileTypes:true})) {
@@ -25,26 +27,34 @@ async function mirror(source,target) {
     else if(entry.isFile())await link(join(source,entry.name),join(target,entry.name)).catch(()=>copyFile(join(source,entry.name),join(target,entry.name)))
   }
 }
-for(const entry of await readdir(application,{withFileTypes:true})) {
-  if(entry.isFile())await link(join(application,entry.name),join(harness,entry.name)).catch(()=>copyFile(join(application,entry.name),join(harness,entry.name)))
+if(mac) {
+  for(const name of ['MacOS','Frameworks','Info.plist'])await cp(join(application,'Contents',name),join(harness,'Contents',name),{recursive:true,verbatimSymlinks:true})
+  for(const [key,value] of Object.entries({CFBundleIdentifier:'org.eduwork.browser-probe',CFBundleName:'EduWork Browser Probe',CFBundleDisplayName:'EduWork Browser Probe'}))
+    execFileSync('/usr/libexec/PlistBuddy',['-c',`Set :${key} ${value}`,join(harness,'Contents/Info.plist')])
+} else {
+  for(const entry of await readdir(application,{withFileTypes:true})) {
+    if(entry.isFile())await link(join(application,entry.name),join(harness,entry.name)).catch(()=>copyFile(join(application,entry.name),join(harness,entry.name)))
+  }
+  await mirror(join(application,'locales'),join(harness,'locales'))
 }
-await mirror(join(application,'locales'),join(harness,'locales'))
-await writeFile(join(harness,'resources/app/package.json'),JSON.stringify({name:'eduwork-browser-qualification',main:'main.cjs'}))
-await writeFile(join(harness,'resources/app/main.cjs'),`
+await writeFile(join(shellResources,'app/package.json'),JSON.stringify({name:'eduwork-browser-qualification',main:'main.cjs'}))
+await writeFile(join(shellResources,'app/main.cjs'),`
 const {app,BrowserWindow}=require('electron');const {createRequire}=require('node:module');const {writeFileSync}=require('node:fs');
 app.setPath('userData',process.env.TEST_DATA);
 app.whenReady().then(async()=>{
  const {startBrowserServer}=await import(process.env.TEST_SOURCE);
- const server=await startBrowserServer({BrowserWindow,WebSocketServer:createRequire(process.env.TEST_RUNTIME+'/package.json')('ws').WebSocketServer,version:process.versions.chrome});
+ const server=await startBrowserServer({BrowserWindow,WebSocketServer:createRequire(process.env.TEST_RUNTIME+'/package.json')('ws').WebSocketServer,version:process.versions.chrome,onDiagnostic:entry=>{if(entry.error)console.error('CDP',entry.method,entry.error)}});
  writeFileSync(process.env.TEST_ENDPOINT,JSON.stringify(server.connection));
  process.on('message',async message=>{if(message==='count')process.send({count:BrowserWindow.getAllWindows().length});else{await server.close();app.quit()}});
 });app.on('window-all-closed',()=>{});
 `)
+if(mac)execFileSync('codesign',['--force','--deep','--sign','-','--timestamp=none',harness],{stdio:'inherit'})
 const fixture=createServer((_req,res)=>res.end('<!doctype html><title>浏览器测试</title><label for="name">Name</label><input id="name"><button onclick="this.innerText=String(event.isTrusted)">Click</button><div style="height:1800px">Long</div>'))
 await new Promise(r=>fixture.listen(0,'127.0.0.1',r))
 const url='http://127.0.0.1:'+fixture.address().port,endpointFile=join(root,'endpoint.json')
-const child=spawn(join(harness,'EduWork-Electron.exe'),[],{env:{...process.env,TEST_DATA:join(root,'profile'),TEST_RUNTIME:runtime,TEST_SOURCE:pathToFileURL(join(repository,'dsh-electron/src/browser-server.mjs')).href,TEST_ENDPOINT:endpointFile},windowsHide:true,stdio:['ignore','pipe','pipe','ipc']})
-const exited=once(child,'exit'),watchdog=setTimeout(()=>child.kill(),180000),report={passed:false,checks:[]};let browser
+const child=spawn(join(harness,mac?'Contents/MacOS/Electron':'EduWork-Electron.exe'),[],{env:{...process.env,TEST_DATA:join(root,'profile'),TEST_RUNTIME:runtime,TEST_SOURCE:pathToFileURL(join(repository,'dsh-electron/src/browser-server.mjs')).href,TEST_ENDPOINT:endpointFile},windowsHide:true,stdio:['ignore','pipe','pipe','ipc']})
+child.stdout.pipe(process.stdout);child.stderr.pipe(process.stderr)
+const exited=once(child,'exit'),watchdog=setTimeout(async()=>{child.kill();report.error='Native qualification timed out';await writeFile(join(root,'result.json'),JSON.stringify(report,null,2));console.error(report.error);process.exit(1)},180000),report={passed:false,platform:process.platform,arch:process.arch,checks:[]};let browser
 const check=name=>{report.checks.push(name);console.log('PASS '+name)}
 try {
  let endpoint
@@ -101,6 +111,7 @@ try {
    const page=await browserTool.execute({action:'navigate',url},execution())
    assert.ok(page.text.includes('Long'))
    for(const delay of [0,5,50]) {
+     console.log('Checking browser cancellation after '+delay+'ms')
      await browserTool.execute({action:'close'},execution())
      const controller=new AbortController()
      const operation=browserTool.execute({action:'navigate',url},execution(controller.signal))
