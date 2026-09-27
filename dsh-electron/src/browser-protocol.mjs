@@ -7,6 +7,18 @@ export class BrowserProtocol {
     Object.assign(this, { runtime, emit, version, purpose, mode })
     this.targets = new Map(); this.sessions = new Map(); this.contexts = new Map(); this.streams = new Map()
     this.prefix = randomUUID(); this.discover = false; this.autoAttach = false
+    for (const id of runtime.windows?.keys() ?? []) this.track(id)
+  }
+  track(id, context) {
+    this.targets.set(id, { context })
+    const window = this.runtime.get(id)
+    window.on('closed', () => {
+      for(const [key,stream] of this.streams)if(this.sessions.get(stream.sessionId)?.id===id)this.streams.delete(key)
+      this.targets.delete(id)
+      for (const [key, session] of this.sessions) if (session.id === id) { this.sessions.delete(key); this.emit({ method: 'Target.detachedFromTarget', params: { sessionId: key, targetId: id } }) }
+      this.emit({ method: 'Target.targetDestroyed', params: { targetId: id } })
+    })
+    window.webContents.on('did-navigate', () => { if (this.targets.has(id)) this.emit({ method: 'Target.targetInfoChanged', params: { targetInfo: this.info(id) } }) })
   }
   info(id) {
     const window = this.runtime.get(id), web = window.webContents
@@ -32,6 +44,13 @@ export class BrowserProtocol {
     this.runtime.closeTarget(id)
   }
   async command({ method, params = {}, sessionId }) {
+    if (sessionId === this.prefix + '-browser') sessionId = undefined
+    if (method === 'EduWork.setVisible') {
+      const target = sessionId ? this.sessions.get(sessionId)?.id : (params.targetId ?? (this.targets.size === 1 ? this.targets.keys().next().value : undefined))
+      if (!this.targets.has(target)) throw Error('Unknown owned target')
+      this.runtime.present(target, params.visible === true)
+      return {}
+    }
     if (method === 'Target.closeTarget') { this.closeTarget(params.targetId); return { success: true } }
     if (method === 'Target.activateTarget') {
       if (!this.targets.has(params.targetId)) throw Error('Unknown owned target')
@@ -65,6 +84,7 @@ export class BrowserProtocol {
       return session.web.debugger.sendCommand(method, params, session.child)
     }
     switch (method) {
+      case 'Target.attachToBrowserTarget': return { sessionId: this.prefix + '-browser' }
       case 'Browser.getVersion': return { protocolVersion: '1.3', product: 'Chrome/' + this.version, revision: '', userAgent: 'EduWork (Windows) Chromium/' + this.version, jsVersion: '' }
       case 'Target.getTargetInfo': return { targetInfo: params.targetId ? this.info(params.targetId) : { targetId: this.prefix, type: 'browser', title: 'EduWork managed browser', url: '', attached: true, canAccessOpener: false } }
       case 'Browser.setDownloadBehavior': return {} // Downloads remain denied by the owned session.
@@ -80,6 +100,7 @@ export class BrowserProtocol {
       case 'Target.getTargets': return { targetInfos: [...this.targets.keys()].map(id => this.info(id)) }
       case 'Target.attachToTarget': return { sessionId: this.attach(params.targetId) }
       case 'Target.detachFromTarget': {
+        if (params.sessionId === this.prefix + '-browser') return {}
         const session = this.sessions.get(params.sessionId)
         if (!session) throw Error('Unknown owned session')
         session.web.debugger.detach(); this.sessions.delete(params.sessionId)
@@ -89,15 +110,7 @@ export class BrowserProtocol {
         if (params.url && params.url !== 'about:blank') throw Error('Create an empty page before navigation')
         if (params.browserContextId && !this.contexts.has(params.browserContextId)) throw Error('Unknown owned context')
         const id = await this.runtime.create({ purpose: this.purpose, mode: this.mode, partition: this.contexts.get(params.browserContextId) ?? (this.purpose === 'managed' ? 'persist:eduwork-managed-browser' : `eduwork-render-${this.prefix}`) })
-        this.targets.set(id, { context: params.browserContextId })
-        const window = this.runtime.get(id)
-        window.on('closed', () => {
-          for(const [key,stream] of this.streams)if(this.sessions.get(stream.sessionId)?.id===id)this.streams.delete(key)
-          this.targets.delete(id)
-          for (const [key, session] of this.sessions) if (session.id === id) { this.sessions.delete(key); this.emit({ method: 'Target.detachedFromTarget', params: { sessionId: key, targetId: id } }) }
-          this.emit({ method: 'Target.targetDestroyed', params: { targetId: id } })
-        })
-        window.webContents.on('did-navigate', () => { if (this.targets.has(id)) this.emit({ method: 'Target.targetInfoChanged', params: { targetInfo: this.info(id) } }) })
+        this.track(id, params.browserContextId)
         if (this.discover) this.emit({ method: 'Target.targetCreated', params: { targetInfo: this.info(id) } })
         if (this.autoAttach) this.attach(id)
         return { targetId: id }

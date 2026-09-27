@@ -102,7 +102,7 @@ try {
  let browserTool,permissionHook,disposeTool
  const priorFlag=process.env.EDUWORK_EXPERIMENTAL_ELECTRON_BROWSER
  process.env.EDUWORK_EXPERIMENTAL_ELECTRON_BROWSER='1'
- const toolContext={tools:{register:tool=>{browserTool=tool}},get:()=>({browserConnection:async()=>endpoint}),permissionPresets:{current:()=> 'workspace-write'},on:(_name,hook)=>{permissionHook=hook},effect:fn=>{disposeTool=fn()}}
+ const toolContext={tools:{register:tool=>{browserTool=tool}},get:()=>({browserConnection:async()=>endpoint}),permissionPresets:{current:()=> 'workspace-write'},on:(name,hook)=>{if(name==='tools/pre-execute')permissionHook=hook},effect:fn=>{disposeTool=fn()}}
  installBrowserTool(toolContext)
  const execution=signal=>({signal,agent:{session:{id:'synthetic',header:{cwd:root}}}})
  try {

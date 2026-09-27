@@ -1,7 +1,8 @@
 // Browser surfaces belong to the shell. Remote pages never receive a preload,
 // Node integration, or the application's session partition.
 export class ElectronBrowserRuntime {
-  constructor({ BrowserWindow }) {
+  constructor({ BrowserWindow, panel, owner }) {
+    Object.assign(this, { panel, owner })
     this.BrowserWindow = BrowserWindow
     this.windows = new Map()
     this.sessions = new Set()
@@ -12,11 +13,13 @@ export class ElectronBrowserRuntime {
   async create({ mode = 'background', purpose = 'managed', partition } = {}) {
     if (this.closed) throw Error('Browser runtime is closed')
     if (!['background', 'visible'].includes(mode) || !['managed', 'render'].includes(purpose)) throw Error('Invalid browser surface')
-    const window = new this.BrowserWindow({ width: 1440, height: 960, show: mode === 'visible',
+    const window = purpose === 'managed' && this.panel && this.owner
+      ? this.panel.create({ partition: partition ?? 'persist:eduwork-managed-browser', owner: this.owner, mode })
+      : new this.BrowserWindow({ width: 1440, height: 960, show: mode === 'visible',
       webPreferences: { partition: partition ?? (purpose === 'managed' ? 'persist:eduwork-managed-browser' : 'eduwork-render'),
         sandbox: true, contextIsolation: true, nodeIntegration: false,
         backgroundThrottling: false, offscreen: mode === 'background' } })
-    window.removeMenu()
+    window.removeMenu?.()
     this.pending.add(window)
     window.on('closed', () => this.pending.delete(window))
     const web = window.webContents
@@ -45,6 +48,11 @@ export class ElectronBrowserRuntime {
       if (!window.isDestroyed()) window.destroy()
       throw error
     }
+  }
+  present(id, visible) {
+    const surface = this.get(id)
+    if (!surface.view || !this.panel) throw Error('Embedded browser unavailable')
+    this.panel.present(surface, visible)
   }
   get(id) {
     const window = this.windows.get(id)

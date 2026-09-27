@@ -1,5 +1,5 @@
-// Keep local application views in Electron; ordinary web links belong to the
-// user's default browser. Never grant a remote page the desktop preload.
+// Keep application navigation local; delegate ordinary web links to the
+// configured browser surface. Never grant a remote page the desktop preload.
 export function navigationTarget(raw) {
   try {
     const url = new URL(raw)
