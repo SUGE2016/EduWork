@@ -4,8 +4,8 @@
   "edition": "generic",
   "version": "0.4.6",
   "sourceState": "local-development-snapshot",
-  "createdAt": "2026-10-21T15:19:49.077Z",
-  "fileSetSHA256": "c4d1234db2e9c48927fe54da6471e408e4d5fd2900c5366786a39089d0bdc3a9",
+  "createdAt": "2026-10-21T17:06:03.077Z",
+  "fileSetSHA256": "d4bdbbed239a613320b1c79ccb65d1e1f3f2aa836375c73ea49b974fb365229e",
   "files": [
     {
       "path": ".gitattributes",
@@ -3161,11 +3161,11 @@
     },
     {
       "path": "packages/dsh-annotation/lib/client.js",
-      "sha256": "2073a1865762abf51aa89603c9519cb3decceb222e2ea255718260d7f858d815"
+      "sha256": "b010af8f7684e478702b31a0c9b22bc348966dab1eda880a827a03c33868d93b"
     },
     {
       "path": "packages/dsh-annotation/lib/index.js",
-      "sha256": "4632774fb87871dbcd96000366f8aca5503f05f0662c7af2024f2cc88bb4f243"
+      "sha256": "44095f2ac5bfbcd47b64828608ad7c582c652a2855a86c0c6efcc19410464b58"
     },
     {
       "path": "packages/dsh-annotation/LICENSE",
@@ -3181,23 +3181,27 @@
     },
     {
       "path": "packages/dsh-annotation/README_EN.md",
-      "sha256": "71dcef94b896557aed7197448b90d2016f19f34cf99a7466cc3326a2252c4e90"
+      "sha256": "67a5e8bf8f1308c48587ce0afbf82e06c463733c1bb437015fcc814e34cc46b5"
     },
     {
       "path": "packages/dsh-annotation/README.md",
-      "sha256": "21397e118c313cd85b2cd9c17cc168149b9193970f087a7991dd6251a68e4960"
+      "sha256": "2925d47f129d5b0cf55ee836efed5e6c22df91441dad6a86b7e538288d2fa483"
     },
     {
       "path": "packages/dsh-annotation/scripts/build.mjs",
-      "sha256": "46d11b77db35ff864d05d7b2c6bb23a5a3baf110c28cb0d5d1553729b494b8cc"
+      "sha256": "c36720a39bde45c64efbcce7820be5e1f6fd6564372c636d01a0281482ec2dba"
     },
     {
       "path": "packages/dsh-annotation/src/client/draft.js",
       "sha256": "b40a86c9076c6e7bee9a4f80854b865e1ef0d15672e08b369b46fb16de00046e"
     },
     {
+      "path": "packages/dsh-annotation/src/client/history.js",
+      "sha256": "560ae41971428af2601e22168b7ff0ef9393dee0280dc0519641aa9ff6408903"
+    },
+    {
       "path": "packages/dsh-annotation/src/client/index.js",
-      "sha256": "62320cee8caa70f42a4256a4dae46dda9b868a0cb129295568456363109b35ab"
+      "sha256": "1a67745d1a1388dec252689cd5419ff048b0c2a446759cdc569675ff9e50598f"
     },
     {
       "path": "packages/dsh-annotation/src/client/position.js",
@@ -3205,15 +3209,23 @@
     },
     {
       "path": "packages/dsh-annotation/src/client/reference.js",
-      "sha256": "f2845cba80e4ae78dee1445d5a87c6b0734aa848c554066d68dbcca113881266"
+      "sha256": "f4afcd739e1590f58519c27037bc7ec00acf928bfc816c655e4befda1f7afa8f"
     },
     {
       "path": "packages/dsh-annotation/src/index.js",
-      "sha256": "4632774fb87871dbcd96000366f8aca5503f05f0662c7af2024f2cc88bb4f243"
+      "sha256": "d436bd833820f1d93e2b8dbf0c6db20cf69e4078b7b3adc3dda92d73ef52928c"
+    },
+    {
+      "path": "packages/dsh-annotation/src/protocol.js",
+      "sha256": "46f6d89ad6b8cba67081cbf9fe980d3a984e79d5b5c2a84a42ddb7a347a3c258"
     },
     {
       "path": "packages/dsh-annotation/test/annotation.test.mjs",
-      "sha256": "df692d30c67b0a2ed5cbb6f7c27bf3ec08e1a341096d9b22a4336aa0634d5c96"
+      "sha256": "04766050ef8f20faf564e3349c21f0fb5db33aa9fff05412462d5ef218bb0a58"
+    },
+    {
+      "path": "packages/dsh-annotation/test/protocol.test.mjs",
+      "sha256": "2aab269d09b00f2124401501d67993982e1bcb9df331f9058d25da83c6468a2b"
     },
     {
       "path": "packages/dsh-desktop-pet/CHANGELOG.md",
@@ -6137,7 +6149,7 @@
     },
     {
       "path": "scripts/assemble-pinned-dsh-source-product.mjs",
-      "sha256": "215c1fd62f8e889d28d7f4a63a902e2897ebe4aed5cbf3641fc4c2ab0608c834"
+      "sha256": "ff2363da10176f10ce9cc3b2d6dcd7de0aa11fd27168a017d380cd58a604a0e5"
     },
     {
       "path": "scripts/audit-eduwork-distribution.mjs",
@@ -6458,6 +6470,10 @@
     {
       "path": "scripts/packages/release.mjs",
       "sha256": "f99ce254a1bd15e1ff8d4b01501c29048d490e43f5dd3271cea2852766ca548d"
+    },
+    {
+      "path": "scripts/patch-chat-user-content-runtime.mjs",
+      "sha256": "04faa824808d153d88a8bf6ed858c0dcd22affa5cfc9bb58ac2034a485ee9434"
     },
     {
       "path": "scripts/patch-eduwork-source-reproducibility.mjs",

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { SOURCE, MAX_NOTE, decode, reference, text } from './reference.js'
 import { place } from './position.js'
 import { annotations, occurrenceSpan, messageOrigin, closingMessage } from './draft.js'
+import { fragment } from '../protocol.js'
+import { AnnotatedContent } from './history.js'
 
 export const inject = ['locale']
 const h = React.createElement
@@ -12,6 +14,7 @@ const MARKER = 'data-eduwork-annotation-marker'
 
 const copy = {
   zh: {
+    selectedText: '所选文本：',
     quote: '批注', notePlaceholder: '添加批注（可选）', add: '加入输入框', cancel: '取消', close: '关闭',
     notePrefix: '批注：', noted: '批注', preview: '引用内容', invalid: '引用内容已损坏。', insertFailed: '当前无法插入引用，请稍后再试。',
     count: '条批注', number: '批注', edit: '编辑', remove: '删除', save: '保存', empty: '暂无待发送批注',
@@ -20,6 +23,7 @@ const copy = {
     finishEdit: '请先保存或取消正在编辑的批注。',
   },
   en: {
+    selectedText: 'Selected text:',
     quote: 'Annotate', notePlaceholder: 'Add a note (optional)', add: 'Add to message', cancel: 'Cancel', close: 'Close',
     notePrefix: 'Note: ', noted: 'note', preview: 'Quoted text', invalid: 'This quote is damaged.', insertFailed: 'The quote cannot be inserted right now. Try again later.',
     count: 'annotations', number: 'Annotation', edit: 'Edit', remove: 'Delete', save: 'Save', empty: 'No pending annotations',
@@ -78,14 +82,18 @@ function readSelection(marker, resolveOrigin) {
   if (!element || element.closest(`[contenteditable="true"], input, textarea, [${UI}]`)) return null
   if (!ownsSelection(marker, element)) return null
   // The one DOM adapter: read the official Chat row identity. All message data
-  // comes from the public snapshot. Do not modify message DOM or scan its text.
+  // comes from the public snapshot. Context is bounded to this selected row.
   const row = element.closest('[data-chat-node-key]')
   if (!row || !row.contains(range.startContainer) || !row.contains(range.endContainer)) return null
   const origin = resolveOrigin(row.getAttribute('data-chat-node-key'))
   if (!origin) return null
+  const before = range.cloneRange(), after = range.cloneRange()
+  before.selectNodeContents(row); before.setEnd(range.startContainer, range.startOffset)
+  after.selectNodeContents(row); after.setStart(range.endContainer, range.endOffset)
+  const context = { before: before.toString().slice(-320), after: after.toString().slice(0, 320) }
   const rects = range.getClientRects()
   const rect = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect()
-  return { quote, origin, x: rect.right, y: rect.bottom, range: range.cloneRange() }
+  return { quote, origin, context, x: rect.right, y: rect.bottom, range: range.cloneRange() }
 }
 
 function useSelectionTarget(marker, paused, resolveOrigin) {
@@ -267,7 +275,7 @@ function AnnotationOverlay({ sessionId, previews, insert, mutate, t, inputAction
   useLayoutEffect(() => draft ? previews.lock(sessionId) : undefined, [draft, previews, sessionId])
   useEffect(() => () => previews.close(sessionId), [previews, sessionId])
   const add = (note) => {
-    const value = reference(draft.quote, note, t, draft.origin)
+    const value = reference(draft.quote, note, t, draft.origin, draft.context)
     // The official composer may reject an insertion while submitting or
     // after a draft revision changes. Keep the editor and note for retry.
     if (value !== undefined && insert(value, inputActions) === true) setDraft(null)
@@ -286,7 +294,7 @@ function AnnotationOverlay({ sessionId, previews, insert, mutate, t, inputAction
       key: `${preview.kind}:${preview.occurrenceId ?? preview.ref ?? ''}`, panel: preview, items, sessionId, previews, t,
       onClose: () => previews.close(sessionId), onOpen: item => previews.open(sessionId, entryPanel(item)),
       onSave: (expected, note) => {
-        const value = reference(expected.annotation.quote, note, t, expected.annotation.origin)
+        const value = reference(expected.annotation.quote, note, t, expected.annotation.origin, expected.annotation.context)
         if (!value || !mutate(expected, value, inputActions)) return false
         previews.close(sessionId); return true
       },
@@ -325,10 +333,13 @@ export function apply(ctx) {
         serialize: async (ref) => {
           const annotation = decode(ref)
           if (annotation === undefined) throw new Error(t('invalid'))
-          return text(annotation, t)
+          return fragment(annotation)
         },
       },
     }), 'annotation: reference source')
+    scope.slots.inject('conversation.chat.user.decorate', () => scope.slots.register({
+      name: 'conversation.chat.user.decorate', id: 'eduwork-annotation', locale: NS,
+    }, AnnotatedContent))
     scope.slots.inject('conversation.input.overlay', () => scope.slots.register({
       name: 'conversation.input.overlay', id: 'eduwork-annotation', order: 10, locale: NS,
       inject: sessionId => ({
