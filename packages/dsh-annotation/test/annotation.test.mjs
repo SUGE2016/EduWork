@@ -5,6 +5,7 @@ import vm from 'node:vm'
 import { decode, encode, reference } from '../src/client/reference.js'
 import { place } from '../src/client/position.js'
 import { annotations, occurrenceSpan, messageOrigin } from '../src/client/draft.js'
+import { projectAnnotations } from '../src/protocol.js'
 
 const t = key => ({ notePrefix: '批注：', noted: '批注', invalid: 'invalid' })[key] ?? key
 
@@ -91,11 +92,11 @@ test('bundle registers a codec source and inserts through the official event', a
   assert.equal(source.trigger, '@')
   assert.equal((await source.candidates({}, {})).length, 0)
   const value = reference('原文', '', t)
-  assert.equal(await source.codec.serialize(value.ref), value.clipboardText)
+  assert.equal(projectAnnotations(await source.codec.serialize(value.ref)).items[0].text, '原文')
   await assert.rejects(source.codec.serialize('{}'))
-  assert.equal(slots[0].spec.name, 'conversation.input.overlay')
-  assert.deepEqual(slots.map(slot => slot.spec.name), ['conversation.input.overlay', 'conversation.input.left', 'conversation.chat.turnTail'])
-  const injected = slots[0].spec.inject('s1')
+  assert.deepEqual(slots.map(slot => slot.spec.name), ['conversation.chat.user.decorate', 'conversation.input.overlay', 'conversation.input.left', 'conversation.chat.turnTail'])
+  const overlay = slots.find(slot => slot.spec.name === 'conversation.input.overlay')
+  const injected = overlay.spec.inject('s1')
   const panels = injected.previews
   panels.open('s1', { kind: 'entry', occurrenceId: 4 })
   const unlock = panels.lock('s1')
@@ -114,7 +115,7 @@ test('bundle registers a codec source and inserts through the official event', a
   assert.equal(injected.insert(value, actions), false)
   assert.equal(focused, 1)
   assert.equal(notified, 1)
-  assert.equal(slots[0].spec.inject('missing-session').insert(value, actions), false)
+  assert.equal(overlay.spec.inject('missing-session').insert(value, actions), false)
 })
 
 test('annotation UI confirms Enter after composition and dismisses only outside the preview', async () => {
