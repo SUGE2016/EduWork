@@ -2,14 +2,25 @@ import {realpath,mkdir} from 'node:fs/promises'
 import {resolve,relative,isAbsolute,join} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {createHash,randomUUID} from 'node:crypto'
+import {isIPv4} from 'node:net'
+import {networkInterfaces} from 'node:os'
+
+export function validateStudentHost(host) {
+  if(host==='127.0.0.1')return host
+  const parts=typeof host==='string'?host.split('.').map(Number):[]
+  const privateAddress=isIPv4(host||'')&&(parts[0]===10||parts[0]===192&&parts[1]===168||parts[0]===172&&parts[1]>=16&&parts[1]<=31)
+  if(!privateAddress||!Object.values(networkInterfaces()).flat().some(i=>i?.address===host&&!i.internal))
+    throw new Error('学生端地址必须是本机当前网卡上的局域网 IPv4；仅本机试用请用 127.0.0.1')
+  return host
+}
 
 export class CourseRuntime {
   #instances=new Map(); #pending=new Set(); #tasks=new Set(); #closed=false
-  constructor({playerRoot,dataRoot,frameOrigins=[],localHost=false}) {
+  constructor({playerRoot,dataRoot,frameOrigins=[],localHost=false,studentHost='127.0.0.1'}) {
     if(!localHost)throw new Error('课程预览目前仅支持明确配置的本机 Host')
     if(!isAbsolute(playerRoot||'')||!isAbsolute(dataRoot||''))throw new Error('请配置播放器及课程数据绝对路径')
     if(!Array.isArray(frameOrigins))throw new Error('无效的浏览器嵌入来源配置')
-    this.config={playerRoot,dataRoot,frameOrigins}
+    this.config={playerRoot,dataRoot,frameOrigins,studentHost:validateStudentHost(studentHost)}
   }
   invoke(args) {
     const task=this.#invoke(args);this.#tasks.add(task)
@@ -48,13 +59,14 @@ export class CourseRuntime {
           await mkdir(data,{recursive:true})
           const {startClassroom}=await import(pathToFileURL(join(this.config.playerRoot,'classroom/dist/index.js')).href)
           classroom=await startClassroom({dbPath:join(data,'classroom.sqlite3'),questionsPath:join(course,settings.questions),
-            teacherPort:0,studentPort:0,studentHost:'127.0.0.1',cookiePrefix:'course_'+createHash('sha256').update(data).digest('hex').slice(0,16),
+            teacherPort:0,studentPort:0,studentHost:validateStudentHost(this.config.studentHost),cookiePrefix:'course_'+createHash('sha256').update(data).digest('hex').slice(0,16),
             frameOrigins:[preview.origin,...this.config.frameOrigins]})
           preview.setRuntime({classroomOrigin:new URL(classroom.teacherUrl).origin})
         }
         if(this.#closed)throw new Error('课程插件已关闭')
         signal?.throwIfAborted()
         const id=randomUUID(),view={status:'running',instanceId:id,title:preview.manifest.title,url:preview.url}
+        if(classroom)view.studentUrl=classroom.studentUrl
         const instance={id,course,view,stop:async()=>{try{await classroom?.stop()}finally{await preview.stop()}}}
         this.#instances.set(key,instance);return view
       }catch(error){try{await classroom?.stop()}finally{await preview.stop()}throw error}

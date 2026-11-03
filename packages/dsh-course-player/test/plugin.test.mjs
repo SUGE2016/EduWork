@@ -3,7 +3,12 @@ import assert from 'node:assert/strict'
 import {mkdtemp,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join,resolve} from 'node:path'
-import {apply} from '../lib/index.js'
+import {apply,Config} from '../lib/index.js'
+
+test('configuration schema defaults to disabled and validates input types',()=>{
+ const defaults=Config['~standard'].validate({});assert.equal(defaults.value.enabled,false);assert.equal(defaults.value.localHost,false)
+ assert.ok(Config['~standard'].validate({enabled:'yes'}).issues)
+})
 
 test('disabled plugin registers nothing',()=>apply({}))
 test('tool contract, permission hook and disposal',{skip:!process.env.COURSE_PLAYER_ROOT},async()=>{
