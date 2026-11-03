@@ -1,0 +1,4 @@
+- insert:
+    - id: dsh-course-player
+      name: '@eduwork/dsh-course-player'
+      config: {}
